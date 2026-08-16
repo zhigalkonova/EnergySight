@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#070B14] text-slate-100 font-sans selection:bg-cyan-500/30 selection:text-cyan-200;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B1120;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1E293B;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(22, 31, 48, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card-hover:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(6, 182, 212, 0.3);
+  box-shadow: 0 4px 20px -2px rgba(6, 182, 212, 0.15);
+}
+
+/* Leaflet Map Dark theme adjustments */
+.leaflet-container {
+  background-color: #0B1120 !important;
+  font-family: inherit;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+}
+
+/* Ensure clean tile visibility without double-inversion */
+.leaflet-tile-pane {
+  opacity: 0.95;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #111827 !important;
+  color: #f1f5f9 !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(6, 182, 212, 0.4) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.9), 0 0 15px rgba(6, 182, 212, 0.25) !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-popup-tip {
+  background: #111827 !important;
+  border: 1px solid rgba(6, 182, 212, 0.3) !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: #94a3b8 !important;
+  padding: 6px 10px !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+}
+
+/* Radar pulse animation for map emergency markers */
+@keyframes scadaRadar {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.scada-radar-danger {
+  animation: scadaRadar 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+.scada-radar-warning {
+  animation: scadaRadar 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+.scada-radar-normal {
+  animation: scadaRadar 3.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
