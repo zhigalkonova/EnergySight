@@ -31,8 +31,8 @@ import { AddSubstationModal } from './AddSubstationModal';
 // Резервные данные из naurzum_district_insert.sql (если Supabase еще не настроен)
 const DEFAULT_NAURZUM_OBJECTS: SupabaseObject[] = [
   { id: 1, name: 'Докучаевка (Караменды)', type: 'подстанция/узел', district: 'Наурзумский', latitude: 51.6458, longitude: 64.2197, status: 'норма' },
-  { id: 2, name: 'Раздольное', type: 'узел', district: 'Наурзумский', latitude: 51.5400, longitude: 63.7600, status: 'норма' },
-  { id: 3, name: 'Сосновка', type: 'узел', district: 'Наурзумский', latitude: 51.4577, longitude: 63.5091, status: 'норма' },
+  { id: 2, name: 'Сосновка', type: 'узел', district: 'Наурзумский', latitude: 51.5200, longitude: 63.6000, status: 'норма' },
+  { id: 3, name: 'Раздольная', type: 'узел', district: 'Наурзумский', latitude: 51.5350, longitude: 63.1500, status: 'норма' },
   { id: 4, name: 'Буревестник', type: 'узел', district: 'Наурзумский', latitude: 51.1853, longitude: 63.4208, status: 'норма' },
   { id: 5, name: 'Семилетка', type: 'узел', district: 'Наурзумский', latitude: 51.5929, longitude: 64.8440, status: 'норма' },
   { id: 6, name: 'Шолоксай', type: 'узел', district: 'Наурзумский', latitude: 51.8554, longitude: 64.8577, status: 'норма' },
@@ -50,7 +50,7 @@ const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
   {
     id: 1,
     from_object_id: 1, // Докучаевка
-    to_object_id: 5,   // Семилетка (Восточный луч)
+    to_object_id: 5,   // Семилетка
     wire_type: 'АС-95',
     length_km: 43.5,
     voltage_class: 'в габаритах 110 кВ',
@@ -63,35 +63,43 @@ const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
   },
   {
     id: 2,
-    from_object_id: 1, // Докучаевка
-    to_object_id: 2,   // Раздольное
+    from_object_id: 2, // Сосновка
+    to_object_id: 1,   // Докучаевка (АС-95, 53.4 км)
     wire_type: 'АС-95',
-    length_km: 34.5,
+    length_km: 53.4,
     voltage_class: 'в габаритах 110 кВ',
-    line_name: 'Докучаевка-Раздольное',
+    line_name: 'Сосновка-Докучаевка',
     status: 'active',
+    path: [
+      [51.5200, 63.6000],
+      [51.5600, 63.6300],
+      [51.6200, 64.1000],
+      [51.6458, 64.2197],
+    ],
   },
   {
     id: 3,
-    from_object_id: 2, // Раздольное
-    to_object_id: 3,   // Сосновка
-    wire_type: 'АС-95',
-    length_km: 24.2,
-    voltage_class: 'в габаритах 110 кВ',
-    line_name: 'Раздольное-Сосновка',
+    from_object_id: 3, // Раздольная
+    to_object_id: 2,   // Сосновка (АС-50, 37.4 км, 35 кВ)
+    wire_type: 'АС-50',
+    length_km: 37.4,
+    voltage_class: '35 кВ',
+    line_name: 'Раздольная-Сосновка',
     status: 'active',
   },
   {
     id: 4,
-    from_object_id: 3, // Сосновка
-    to_object_id: 4,   // Буревестник
+    from_object_id: 2, // Сосновка
+    to_object_id: 4,   // Буревестник (АС-95, 30.9 км)
     wire_type: 'АС-95',
     length_km: 30.9,
     voltage_class: 'в габаритах 110 кВ',
+    line_name: 'Сосновка-Буревестник',
     status: 'active',
     path: [
-      [51.4577, 63.5091],
-      [51.3100, 63.4500],
+      [51.5200, 63.6000],
+      [51.4800, 63.6200],
+      [51.2400, 63.6800],
       [51.1853, 63.4208],
     ],
   },
