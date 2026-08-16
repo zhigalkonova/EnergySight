@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS lines (
     length_km NUMERIC,
     voltage_class TEXT,       -- например 'в габаритах 110 кВ', 'в режиме 10 кВ'
     status TEXT DEFAULT 'active',
-    line_name TEXT,           -- например 'Наурзум-Раздольное'
+    line_name TEXT,           -- например 'Докучаевка-Раздольное'
     path JSONB,                -- массив промежуточных точек [[lat,lon], [lat,lon], ...]
     created_at TIMESTAMP DEFAULT now()
 );
@@ -24,9 +24,9 @@ CREATE TABLE IF NOT EXISTS lines (
 INSERT INTO objects (name, type, district, latitude, longitude, status, last_maintenance)
 VALUES
     ('Докучаевка (Караменды)', 'подстанция/узел', 'Наурзумский', 51.6458, 64.2197, 'норма', now() - interval '30 days'),
+    ('Раздольное',             'узел',            'Наурзумский', 51.5400, 63.7600, 'норма', now() - interval '35 days'),
     ('Сосновка',               'узел',            'Наурзумский', 51.4577, 63.5091, 'норма', now() - interval '45 days'),
     ('Буревестник',            'узел',            'Наурзумский', 51.1853, 63.4208, 'норма', now() - interval '60 days'),
-    ('Раздольное',             'узел',            'Наурзумский', 51.4850, 63.8800, 'норма', now() - interval '35 days'),
     ('Семилетка',              'узел',            'Наурзумский', 51.5929, 64.8440, 'норма', now() - interval '20 days'),
     ('Шолоксай',               'узел',            'Наурзумский', 51.8554, 64.8577, 'норма', now() - interval '15 days'),
     ('Ушакова',                'узел',            'Наурзумский', 51.4988, 65.5303, 'норма', now() - interval '50 days'),
@@ -44,28 +44,28 @@ VALUES
 
 INSERT INTO lines (from_object_id, to_object_id, wire_type, length_km, voltage_class, line_name, status, path)
 VALUES
-    -- 1. Магистральная ВЛ-110 кВ Докучаевка — Семилетка (ЕДИНСТВЕННАЯ линия 110 кВ на этом участке)
+    -- 1. Восточный луч: Докучаевка — Семилетка (110 кВ)
     (
         (SELECT id FROM objects WHERE name = 'Докучаевка (Караменды)'),
         (SELECT id FROM objects WHERE name = 'Семилетка'),
         'АС-95', 43.5, 'в габаритах 110 кВ', NULL, 'active',
         '[[51.6458, 64.2197], [51.6250, 64.5300], [51.5929, 64.8440]]'::jsonb
     ),
-    -- 2. ВЛ-10 кВ Докучаевка — Раздольное
+    -- 2. Западный луч: Докучаевка — Раздольное (110 кВ в габаритах / 35 кВ)
     (
         (SELECT id FROM objects WHERE name = 'Докучаевка (Караменды)'),
         (SELECT id FROM objects WHERE name = 'Раздольное'),
-        'АС-50', 22.5, 'в режиме 10 кВ', 'Докучаевка-Раздольное', 'active',
+        'АС-95', 34.5, 'в габаритах 110 кВ', 'Докучаевка-Раздольное', 'active',
         NULL
     ),
-    -- 3. ВЛ-110 кВ Сосновка — Докучаевка
+    -- 3. Западный луч: Раздольное — Сосновка (110 кВ в габаритах / 35 кВ)
     (
+        (SELECT id FROM objects WHERE name = 'Раздольное'),
         (SELECT id FROM objects WHERE name = 'Сосновка'),
-        (SELECT id FROM objects WHERE name = 'Докучаевка (Караменды)'),
-        'АС-95', 53.4, 'в габаритах 110 кВ', NULL, 'active',
-        '[[51.4577, 63.5091], [51.5800, 63.8800], [51.6458, 64.2197]]'::jsonb
+        'АС-95', 24.2, 'в габаритах 110 кВ', 'Раздольное-Сосновка', 'active',
+        NULL
     ),
-    -- 4. ВЛ-110 кВ Сосновка — Буревестник
+    -- 4. Юго-западный луч: Сосновка — Буревестник (110 кВ)
     (
         (SELECT id FROM objects WHERE name = 'Сосновка'),
         (SELECT id FROM objects WHERE name = 'Буревестник'),
