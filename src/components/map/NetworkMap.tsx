@@ -31,16 +31,16 @@ import { AddSubstationModal } from './AddSubstationModal';
 // Резервные данные из naurzum_district_insert.sql (если Supabase еще не настроен)
 const DEFAULT_NAURZUM_OBJECTS: SupabaseObject[] = [
   { id: 1, name: 'Докучаевка (Караменды)', type: 'подстанция/узел', district: 'Наурзумский', latitude: 51.6458, longitude: 64.2197, status: 'норма' },
-  { id: 2, name: 'Сосновка', type: 'узел', district: 'Наурзумский', latitude: 51.6420, longitude: 64.4306, status: 'норма' },
-  { id: 3, name: 'Буревестник', type: 'узел', district: 'Наурзумский', latitude: 50.9641, longitude: 64.3725, status: 'норма' },
-  { id: 4, name: 'Семилетка', type: 'узел', district: 'Наурзумский', latitude: 51.7902, longitude: 64.8905, status: 'норма' },
-  { id: 5, name: 'Шолоксай', type: 'узел', district: 'Наурзумский', latitude: 52.1186, longitude: 64.8950, status: 'норма' },
-  { id: 6, name: 'Ушакова', type: 'узел', district: 'Наурзумский', latitude: 51.6737, longitude: 65.1183, status: 'норма' },
-  { id: 7, name: 'Панфилова', type: 'узел', district: 'Наурзумский', latitude: 51.5466, longitude: 65.0825, status: 'норма' },
+  { id: 2, name: 'Сосновка', type: 'узел', district: 'Наурзумский', latitude: 51.4577, longitude: 63.5091, status: 'норма' },
+  { id: 3, name: 'Буревестник', type: 'узел', district: 'Наурзумский', latitude: 51.1853, longitude: 63.4208, status: 'норма' },
+  { id: 4, name: 'Семилетка', type: 'узел', district: 'Наурзумский', latitude: 51.5929, longitude: 64.8440, status: 'норма' },
+  { id: 5, name: 'Шолоксай', type: 'узел', district: 'Наурзумский', latitude: 51.8554, longitude: 64.8577, status: 'норма' },
+  { id: 6, name: 'Ушакова', type: 'узел', district: 'Наурзумский', latitude: 51.4988, longitude: 65.5303, status: 'норма' },
+  { id: 7, name: 'Панфилова', type: 'узел', district: 'Наурзумский', latitude: 51.4254, longitude: 65.4519, status: 'норма' },
   { id: 8, name: 'Кожа', type: 'узел', district: 'Наурзумский', latitude: 51.3348, longitude: 64.7655, status: 'норма' },
   { id: 9, name: 'Дамды', type: 'узел', district: 'Наурзумский', latitude: 51.2077, longitude: 65.0245, status: 'норма' },
-  { id: 10, name: 'РП-10 кВ "п.Аксай"', type: 'РП', district: 'Наурзумский', latitude: 51.0488, longitude: 65.1093, status: 'норма' },
-  { id: 11, name: 'ПС Кожахмет', type: 'ПС (демонтирована)', district: 'Наурзумский', latitude: 50.5404, longitude: 64.9843, status: 'демонтирован' },
+  { id: 10, name: 'РП-10 кВ "п.Аксай"', type: 'РП', district: 'Наурзумский', latitude: 51.0708, longitude: 65.2997, status: 'норма' },
+  { id: 11, name: 'ПС Кожахмет', type: 'ПС (демонтирована)', district: 'Наурзумский', latitude: 50.7972, longitude: 64.9317, status: 'демонтирован' },
 ];
 
 const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
