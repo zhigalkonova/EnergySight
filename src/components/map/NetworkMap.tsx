@@ -46,10 +46,49 @@ const DEFAULT_NAURZUM_OBJECTS: SupabaseObject[] = [
 ];
 
 const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
-  { id: 1, from_object_id: 1, to_object_id: 4, wire_type: 'АС-95', length_km: 43.5, voltage_class: 'в габаритах 110 кВ', status: 'active' },
+  {
+    id: 1,
+    from_object_id: 1,
+    to_object_id: 4,
+    wire_type: 'АС-95',
+    length_km: 43.5,
+    voltage_class: 'в габаритах 110 кВ',
+    status: 'active',
+    path: [
+      [51.6458, 64.2197],
+      [51.6250, 64.5300],
+      [51.5929, 64.8440],
+    ],
+  },
   { id: 2, from_object_id: 1, to_object_id: 4, wire_type: 'АС-50', length_km: 22.5, voltage_class: 'в режиме 10 кВ', line_name: 'Наурзум-Сарбулак', status: 'active' },
-  { id: 3, from_object_id: 2, to_object_id: 1, wire_type: 'АС-95', length_km: 53.4, voltage_class: 'в габаритах 110 кВ', status: 'active' },
-  { id: 4, from_object_id: 2, to_object_id: 3, wire_type: 'АС-95', length_km: 30.9, voltage_class: 'в габаритах 110 кВ', status: 'active' },
+  {
+    id: 3,
+    from_object_id: 2,
+    to_object_id: 1,
+    wire_type: 'АС-95',
+    length_km: 53.4,
+    voltage_class: 'в габаритах 110 кВ',
+    status: 'active',
+    path: [
+      [51.4577, 63.5091],
+      [51.5800, 63.8800],
+      [51.6458, 64.2197],
+    ],
+  },
+  {
+    id: 4,
+    from_object_id: 2,
+    to_object_id: 3,
+    wire_type: 'АС-95',
+    length_km: 30.9,
+    voltage_class: 'в габаритах 110 кВ',
+    status: 'active',
+    path: [
+      [51.4577, 63.5091],
+      [51.3100, 63.4500],
+      [51.1853, 63.4208],
+    ],
+  },
   { id: 5, from_object_id: 4, to_object_id: 5, wire_type: 'АС-50', length_km: 29.2, voltage_class: '35 кВ', status: 'active' },
   { id: 6, from_object_id: 4, to_object_id: 8, wire_type: 'АС-70', length_km: 34.2, voltage_class: '35 кВ', status: 'active' },
   { id: 7, from_object_id: 4, to_object_id: 6, wire_type: 'АС-95', length_km: 48.6, voltage_class: 'в габаритах 110 кВ', status: 'active' },
