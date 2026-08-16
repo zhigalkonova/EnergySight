@@ -33,23 +33,24 @@ const DEFAULT_NAURZUM_OBJECTS: SupabaseObject[] = [
   { id: 1, name: 'Докучаевка (Караменды)', type: 'подстанция/узел', district: 'Наурзумский', latitude: 51.6458, longitude: 64.2197, status: 'норма' },
   { id: 2, name: 'Сосновка', type: 'узел', district: 'Наурзумский', latitude: 51.4577, longitude: 63.5091, status: 'норма' },
   { id: 3, name: 'Буревестник', type: 'узел', district: 'Наурзумский', latitude: 51.1853, longitude: 63.4208, status: 'норма' },
-  { id: 4, name: 'Семилетка', type: 'узел', district: 'Наурзумский', latitude: 51.5929, longitude: 64.8440, status: 'норма' },
-  { id: 5, name: 'Шолоксай', type: 'узел', district: 'Наурзумский', latitude: 51.8554, longitude: 64.8577, status: 'норма' },
-  { id: 6, name: 'Ушакова', type: 'узел', district: 'Наурзумский', latitude: 51.4988, longitude: 65.5303, status: 'норма' },
-  { id: 7, name: 'Панфилова', type: 'узел', district: 'Наурзумский', latitude: 51.4254, longitude: 65.4519, status: 'норма' },
-  { id: 8, name: 'Кожа', type: 'узел', district: 'Наурзумский', latitude: 51.3348, longitude: 64.7655, status: 'норма' },
-  { id: 9, name: 'Дамды', type: 'узел', district: 'Наурзумский', latitude: 51.2077, longitude: 65.0245, status: 'норма' },
-  { id: 10, name: 'РП-10 кВ "п.Аксай"', type: 'РП', district: 'Наурзумский', latitude: 51.0708, longitude: 65.2997, status: 'норма' },
-  { id: 11, name: 'ПС Кожахмет', type: 'ПС (демонтирована)', district: 'Наурзумский', latitude: 50.7972, longitude: 64.9317, status: 'демонтирован' },
-  { id: 12, name: 'Кайга (конец ВЛ-10кВ)', type: 'тупиковая точка', district: 'Наурзумский', latitude: 50.8100, longitude: 64.8100, status: 'норма' },
-  { id: 13, name: 'Ц.У. (конец ВЛ-10кВ)', type: 'тупиковая точка', district: 'Наурзумский', latitude: 50.7850, longitude: 64.8150, status: 'норма' },
+  { id: 4, name: 'Раздольное', type: 'узел', district: 'Наурзумский', latitude: 51.4850, longitude: 63.8800, status: 'норма' },
+  { id: 5, name: 'Семилетка', type: 'узел', district: 'Наурзумский', latitude: 51.5929, longitude: 64.8440, status: 'норма' },
+  { id: 6, name: 'Шолоксай', type: 'узел', district: 'Наурзумский', latitude: 51.8554, longitude: 64.8577, status: 'норма' },
+  { id: 7, name: 'Ушакова', type: 'узел', district: 'Наурзумский', latitude: 51.4988, longitude: 65.5303, status: 'норма' },
+  { id: 8, name: 'Панфилова', type: 'узел', district: 'Наурзумский', latitude: 51.4254, longitude: 65.4519, status: 'норма' },
+  { id: 9, name: 'Кожа', type: 'узел', district: 'Наурзумский', latitude: 51.3348, longitude: 64.7655, status: 'норма' },
+  { id: 10, name: 'Дамды', type: 'узел', district: 'Наурзумский', latitude: 51.2077, longitude: 65.0245, status: 'норма' },
+  { id: 11, name: 'РП-10 кВ "п.Аксай"', type: 'РП', district: 'Наурзумский', latitude: 51.0708, longitude: 65.2997, status: 'норма' },
+  { id: 12, name: 'ПС Кожахмет', type: 'ПС (демонтирована)', district: 'Наурзумский', latitude: 50.7972, longitude: 64.9317, status: 'демонтирован' },
+  { id: 13, name: 'Кайга (конец ВЛ-10кВ)', type: 'тупиковая точка', district: 'Наурзумский', latitude: 50.8100, longitude: 64.8100, status: 'норма' },
+  { id: 14, name: 'Ц.У. (конец ВЛ-10кВ)', type: 'тупиковая точка', district: 'Наурзумский', latitude: 50.7850, longitude: 64.8150, status: 'норма' },
 ];
 
 const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
   {
     id: 1,
-    from_object_id: 1,
-    to_object_id: 4,
+    from_object_id: 1, // Докучаевка
+    to_object_id: 5,   // Семилетка (ЕДИНСТВЕННАЯ линия 110 кВ)
     wire_type: 'АС-95',
     length_km: 43.5,
     voltage_class: 'в габаритах 110 кВ',
@@ -60,11 +61,20 @@ const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
       [51.5929, 64.8440],
     ],
   },
-  { id: 2, from_object_id: 1, to_object_id: 4, wire_type: 'АС-50', length_km: 22.5, voltage_class: 'в режиме 10 кВ', line_name: 'Наурзум-Сарбулак', status: 'active' },
+  {
+    id: 2,
+    from_object_id: 1, // Докучаевка
+    to_object_id: 4,   // Раздольное
+    wire_type: 'АС-50',
+    length_km: 22.5,
+    voltage_class: 'в режиме 10 кВ',
+    line_name: 'Докучаевка-Раздольное',
+    status: 'active',
+  },
   {
     id: 3,
-    from_object_id: 2,
-    to_object_id: 1,
+    from_object_id: 2, // Сосновка
+    to_object_id: 1,   // Докучаевка
     wire_type: 'АС-95',
     length_km: 53.4,
     voltage_class: 'в габаритах 110 кВ',
@@ -77,8 +87,8 @@ const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
   },
   {
     id: 4,
-    from_object_id: 2,
-    to_object_id: 3,
+    from_object_id: 2, // Сосновка
+    to_object_id: 3,   // Буревестник
     wire_type: 'АС-95',
     length_km: 30.9,
     voltage_class: 'в габаритах 110 кВ',
@@ -89,17 +99,17 @@ const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
       [51.1853, 63.4208],
     ],
   },
-  { id: 5, from_object_id: 4, to_object_id: 5, wire_type: 'АС-50', length_km: 29.2, voltage_class: '35 кВ', status: 'active' },
-  { id: 6, from_object_id: 4, to_object_id: 8, wire_type: 'АС-70', length_km: 34.2, voltage_class: '35 кВ', status: 'active' },
-  { id: 7, from_object_id: 4, to_object_id: 6, wire_type: 'АС-95', length_km: 48.6, voltage_class: 'в габаритах 110 кВ', status: 'active' },
-  { id: 8, from_object_id: 6, to_object_id: 7, wire_type: 'АС-70', length_km: 9.8, voltage_class: '35 кВ', status: 'active' },
-  { id: 9, from_object_id: 7, to_object_id: 9, wire_type: 'АС-70', length_km: 31.3, voltage_class: '35 кВ', status: 'active' },
-  { id: 10, from_object_id: 8, to_object_id: 9, wire_type: 'АС-70', length_km: 28.8, voltage_class: '35 кВ', status: 'active' },
-  { id: 11, from_object_id: 9, to_object_id: 10, wire_type: 'АС-35', length_km: 24.5, voltage_class: 'в габаритах 35 кВ', status: 'active' },
+  { id: 5, from_object_id: 5, to_object_id: 6, wire_type: 'АС-50', length_km: 29.2, voltage_class: '35 кВ', status: 'active' },
+  { id: 6, from_object_id: 5, to_object_id: 9, wire_type: 'АС-70', length_km: 34.2, voltage_class: '35 кВ', status: 'active' },
+  { id: 7, from_object_id: 5, to_object_id: 7, wire_type: 'АС-95', length_km: 48.6, voltage_class: 'в габаритах 110 кВ', status: 'active' },
+  { id: 8, from_object_id: 7, to_object_id: 8, wire_type: 'АС-70', length_km: 9.8, voltage_class: '35 кВ', status: 'active' },
+  { id: 9, from_object_id: 8, to_object_id: 10, wire_type: 'АС-70', length_km: 31.3, voltage_class: '35 кВ', status: 'active' },
+  { id: 10, from_object_id: 9, to_object_id: 10, wire_type: 'АС-70', length_km: 28.8, voltage_class: '35 кВ', status: 'active' },
+  { id: 11, from_object_id: 10, to_object_id: 11, wire_type: 'АС-35', length_km: 24.5, voltage_class: 'в габаритах 35 кВ', status: 'active' },
   {
     id: 12,
-    from_object_id: 9,
-    to_object_id: 11,
+    from_object_id: 10,
+    to_object_id: 12,
     wire_type: 'АС-70',
     length_km: 46.1,
     voltage_class: 'в габаритах 35 кВ',
@@ -110,8 +120,8 @@ const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
       [50.7972, 64.9317],
     ],
   },
-  { id: 13, from_object_id: 11, to_object_id: 12, wire_type: 'АС-35', length_km: 15.0, voltage_class: '10 кВ', line_name: 'Кожахмет-Кайга', status: 'active' },
-  { id: 14, from_object_id: 11, to_object_id: 13, wire_type: 'АС-35', length_km: 15.0, voltage_class: '10 кВ', line_name: 'Кожахмет-Ц.У.', status: 'active' },
+  { id: 13, from_object_id: 12, to_object_id: 13, wire_type: 'АС-35', length_km: 15.0, voltage_class: '10 кВ', line_name: 'Кожахмет-Кайга', status: 'active' },
+  { id: 14, from_object_id: 12, to_object_id: 14, wire_type: 'АС-35', length_km: 15.0, voltage_class: '10 кВ', line_name: 'Кожахмет-Ц.У.', status: 'active' },
 ];
 
 type TileStyle = 'light' | 'osm' | 'satellite' | 'dark';
