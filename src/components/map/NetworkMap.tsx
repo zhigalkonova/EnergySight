@@ -21,112 +21,16 @@ import {
   Satellite,
   RefreshCw,
   Database,
+  CheckCircle2,
+  AlertTriangle,
+  Flame,
 } from 'lucide-react';
 import { useEnergy } from '../../context/EnergyContext';
-import { SupabaseObject, SupabaseLine } from '../../types/energy';
-import { getSupabaseClient } from '../../services/supabaseClient';
+import { EnergyObject, PowerLine, LineStatus, ObjectStatus } from '../../types/energy';
+import { StatusBadge } from '../registry/StatusBadge';
 import { AddEventModal } from '../object-detail/AddEventModal';
 import { AddSubstationModal } from './AddSubstationModal';
-
-// Резервные данные из naurzum_district_insert.sql (если Supabase еще не настроен)
-const DEFAULT_NAURZUM_OBJECTS: SupabaseObject[] = [
-  { id: 1, name: 'Докучаевка (Караменды)', type: 'подстанция/узел', district: 'Наурзумский', latitude: 51.6458, longitude: 64.2197, status: 'норма' },
-  { id: 2, name: 'Сосновка', type: 'узел', district: 'Наурзумский', latitude: 51.5200, longitude: 63.6000, status: 'норма' },
-  { id: 3, name: 'Раздольная', type: 'узел', district: 'Наурзумский', latitude: 51.5350, longitude: 63.1500, status: 'норма' },
-  { id: 4, name: 'Буревестник', type: 'узел', district: 'Наурзумский', latitude: 51.1853, longitude: 63.4208, status: 'норма' },
-  { id: 5, name: 'Семилетка', type: 'узел', district: 'Наурзумский', latitude: 51.5929, longitude: 64.8440, status: 'норма' },
-  { id: 6, name: 'Шолоксай', type: 'узел', district: 'Наурзумский', latitude: 51.8554, longitude: 64.8577, status: 'норма' },
-  { id: 7, name: 'Ушакова', type: 'узел', district: 'Наурзумский', latitude: 51.4988, longitude: 65.5303, status: 'норма' },
-  { id: 8, name: 'Панфилова', type: 'узел', district: 'Наурзумский', latitude: 51.4254, longitude: 65.4519, status: 'норма' },
-  { id: 9, name: 'Кожа', type: 'узел', district: 'Наурзумский', latitude: 51.3348, longitude: 64.7655, status: 'норма' },
-  { id: 10, name: 'Дамды', type: 'узел', district: 'Наурзумский', latitude: 51.2077, longitude: 65.0245, status: 'норма' },
-  { id: 11, name: 'РП-10 кВ "п.Аксай"', type: 'РП', district: 'Наурзумский', latitude: 51.0708, longitude: 65.2997, status: 'норма' },
-  { id: 12, name: 'ПС Кожахмет', type: 'ПС (демонтирована)', district: 'Наурзумский', latitude: 50.7972, longitude: 64.9317, status: 'демонтирован' },
-  { id: 13, name: 'Кайга (конец ВЛ-10кВ)', type: 'тупиковая точка', district: 'Наурзумский', latitude: 50.8100, longitude: 64.8100, status: 'норма' },
-  { id: 14, name: 'Ц.У. (конец ВЛ-10кВ)', type: 'тупиковая точка', district: 'Наурзумский', latitude: 50.7850, longitude: 64.8150, status: 'норма' },
-];
-
-const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
-  {
-    id: 1,
-    from_object_id: 1, // Докучаевка
-    to_object_id: 5,   // Семилетка
-    wire_type: 'АС-95',
-    length_km: 43.5,
-    voltage_class: 'в габаритах 110 кВ',
-    status: 'active',
-    path: [
-      [51.6458, 64.2197],
-      [51.6250, 64.5300],
-      [51.5929, 64.8440],
-    ],
-  },
-  {
-    id: 2,
-    from_object_id: 2, // Сосновка
-    to_object_id: 1,   // Докучаевка (АС-95, 53.4 км)
-    wire_type: 'АС-95',
-    length_km: 53.4,
-    voltage_class: 'в габаритах 110 кВ',
-    line_name: 'Сосновка-Докучаевка',
-    status: 'active',
-    path: [
-      [51.5200, 63.6000],
-      [51.5600, 63.6300],
-      [51.6200, 64.1000],
-      [51.6458, 64.2197],
-    ],
-  },
-  {
-    id: 3,
-    from_object_id: 3, // Раздольная
-    to_object_id: 2,   // Сосновка (АС-50, 37.4 км, 35 кВ)
-    wire_type: 'АС-50',
-    length_km: 37.4,
-    voltage_class: '35 кВ',
-    line_name: 'Раздольная-Сосновка',
-    status: 'active',
-  },
-  {
-    id: 4,
-    from_object_id: 2, // Сосновка
-    to_object_id: 4,   // Буревестник (АС-95, 30.9 км)
-    wire_type: 'АС-95',
-    length_km: 30.9,
-    voltage_class: 'в габаритах 110 кВ',
-    line_name: 'Сосновка-Буревестник',
-    status: 'active',
-    path: [
-      [51.5200, 63.6000],
-      [51.4800, 63.6200],
-      [51.2400, 63.6800],
-      [51.1853, 63.4208],
-    ],
-  },
-  { id: 5, from_object_id: 5, to_object_id: 6, wire_type: 'АС-50', length_km: 29.2, voltage_class: '35 кВ', status: 'active' },
-  { id: 6, from_object_id: 5, to_object_id: 9, wire_type: 'АС-70', length_km: 34.2, voltage_class: '35 кВ', status: 'active' },
-  { id: 7, from_object_id: 5, to_object_id: 7, wire_type: 'АС-95', length_km: 48.6, voltage_class: 'в габаритах 110 кВ', status: 'active' },
-  { id: 8, from_object_id: 7, to_object_id: 8, wire_type: 'АС-70', length_km: 9.8, voltage_class: '35 кВ', status: 'active' },
-  { id: 9, from_object_id: 8, to_object_id: 10, wire_type: 'АС-70', length_km: 31.3, voltage_class: '35 кВ', status: 'active' },
-  { id: 10, from_object_id: 9, to_object_id: 10, wire_type: 'АС-70', length_km: 28.8, voltage_class: '35 кВ', status: 'active' },
-  { id: 11, from_object_id: 10, to_object_id: 11, wire_type: 'АС-35', length_km: 24.5, voltage_class: 'в габаритах 35 кВ', status: 'active' },
-  {
-    id: 12,
-    from_object_id: 10, // Дамды
-    to_object_id: 12,   // ПС Кожахмет
-    wire_type: 'АС-70',
-    length_km: 46.1,
-    voltage_class: 'в габаритах 35 кВ',
-    status: 'demontirovana',
-    path: [
-      [51.2077, 65.0245],
-      [51.0250, 64.9700],
-      [50.7972, 64.9317],
-    ],
-  },
-  { id: 13, from_object_id: 12, to_object_id: 13, wire_type: 'АС-35', length_km: 15.0, voltage_class: '10 кВ', line_name: 'Кожахмет-Кайга', status: 'active' },
-  { id: 14, from_object_id: 12, to_object_id: 14, wire_type: 'АС-35', length_km: 15.0, voltage_class: '10 кВ', line_name: 'Кожахмет-Ц.У.', status: 'active' },
-];
+import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
 
 type TileStyle = 'light' | 'osm' | 'satellite' | 'dark';
 
@@ -146,36 +50,38 @@ const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ c
 };
 
 // Create custom high-visibility SVG marker for objects
-const createObjectIcon = (status: string | undefined, isSelected: boolean, isEndpoint?: boolean) => {
-  const isOutage = status === 'авария' || status === 'outage';
-  const isMaintenance = status === 'ремонт' || status === 'maintenance' || status === 'демонтирован';
-  
-  let color = isEndpoint ? '#38BDF8' : '#10B981'; // normal (green) or cyan for endpoints
+const createObjectIcon = (status: ObjectStatus, voltageKV: number, isSelected: boolean, isEndpoint?: boolean) => {
+  let color = '#10B981'; // 🟢 норма
   let ringColor = 'rgba(16, 185, 129, 0.4)';
-  if (isOutage) {
-    color = '#EF4444';
+  let radarClass = 'scada-radar-normal';
+
+  if (status === 'outage') {
+    color = '#EF4444'; // 🔴 авария
     ringColor = 'rgba(239, 68, 68, 0.7)';
-  } else if (isMaintenance) {
-    color = '#F59E0B';
+    radarClass = 'scada-radar-danger';
+  } else if (status === 'maintenance') {
+    color = '#F59E0B'; // 🟡 в ремонте
     ringColor = 'rgba(245, 158, 11, 0.6)';
+    radarClass = 'scada-radar-warning';
   }
 
   const selectedPulse = isSelected
     ? `<div style="position: absolute; inset: -6px; border: 2.5px dashed #0284C7; border-radius: 9999px; animation: spin 8s linear infinite;"></div>`
     : '';
 
-  const size = isEndpoint ? 28 : 38;
-  const innerSize = isEndpoint ? 20 : 28;
+  const size = isEndpoint ? 30 : 40;
+  const innerSize = isEndpoint ? 22 : 30;
 
   const html = `
     <div style="position: relative; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-      <div style="position: absolute; width: ${size - 8}px; height: ${size - 8}px; border-radius: 9999px; background: ${ringColor}; pointer-events: none;"></div>
+      <div class="${radarClass}" style="position: absolute; width: ${size - 8}px; height: ${size - 8}px; border-radius: 9999px; background: ${ringColor}; pointer-events: none;"></div>
       ${selectedPulse}
       
-      <div style="position: relative; z-index: 10; width: ${innerSize}px; height: ${innerSize}px; border-radius: 7px; background: #0F172A; border: 2px solid ${color}; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-        <svg width="${innerSize * 0.5}" height="${innerSize * 0.5}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <div style="position: relative; z-index: 10; width: ${innerSize}px; height: ${innerSize}px; border-radius: 8px; background: #0F172A; border: 2px solid ${color}; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
         </svg>
+        ${!isEndpoint ? `<span style="font-size: 7.5px; font-weight: 900; font-family: monospace; color: #FFFFFF; line-height: 1;">${voltageKV}</span>` : ''}
       </div>
     </div>
   `;
@@ -190,80 +96,71 @@ const createObjectIcon = (status: string | undefined, isSelected: boolean, isEnd
 };
 
 export const NetworkMap: React.FC = () => {
-  const [objects, setObjects] = useState<SupabaseObject[]>([]);
-  const [lines, setLines] = useState<SupabaseLine[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSupabaseLive, setIsSupabaseLive] = useState(false);
-  const [selectedObjId, setSelectedObjId] = useState<string | number | null>(null);
+  const {
+    objects,
+    powerLines,
+    statusFilter,
+    setStatusFilter,
+    selectedObjectId,
+    setSelectedObjectId,
+    setActiveTab,
+    events,
+    stats,
+  } = useEnergy();
 
+  const [localLines, setLocalLines] = useState<PowerLine[]>(powerLines);
   const [showLines, setShowLines] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [tileStyle, setTileStyle] = useState<TileStyle>('light');
+  const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
   const [isAddSubstationModalOpen, setIsAddSubstationModalOpen] = useState(false);
+  const [targetObjectForEvent, setTargetObjectForEvent] = useState<EnergyObject | null>(null);
 
-  // 1. Загрузка данных из Supabase
-  const loadDataFromSupabase = async () => {
-    setIsLoading(true);
-    try {
-      const supabase = getSupabaseClient();
-      let loadedObjects: SupabaseObject[] = [];
-      let loadedLines: SupabaseLine[] = [];
-
-      if (supabase) {
-        const { data: objectsData, error: objError } = await supabase
-          .from('objects')
-          .select('*');
-
-        const { data: linesData, error: lineError } = await supabase
-          .from('lines')
-          .select('*');
-
-        if (objError) {
-          console.warn('Supabase objects query error:', objError.message);
-        } else if (objectsData && objectsData.length > 0) {
-          loadedObjects = objectsData as SupabaseObject[];
-          setIsSupabaseLive(true);
-        }
-
-        if (lineError) {
-          console.warn('Supabase lines query error:', lineError.message);
-        } else if (linesData && linesData.length > 0) {
-          loadedLines = linesData as SupabaseLine[];
-        }
-      }
-
-      // Fallback на локальный набор (naurzum_district_insert.sql) если Supabase пуст или не подключен
-      if (loadedObjects.length === 0) {
-        loadedObjects = DEFAULT_NAURZUM_OBJECTS;
-        loadedLines = DEFAULT_NAURZUM_LINES;
-        setIsSupabaseLive(false);
-      }
-
-      setObjects(loadedObjects);
-      setLines(loadedLines);
-
-      // 5. Вывод в консоль objects.length и lines.length после загрузки
-      console.log('⚡ [EnergySight] Данные успешно загружены:');
-      console.log('⚡ objects.length =', loadedObjects.length, loadedObjects);
-      console.log('⚡ lines.length =', loadedLines.length, loadedLines);
-    } catch (err) {
-      console.error('Ошибка при загрузке данных из Supabase:', err);
-      setObjects(DEFAULT_NAURZUM_OBJECTS);
-      setLines(DEFAULT_NAURZUM_LINES);
-      console.log('⚡ Fallback objects.length =', DEFAULT_NAURZUM_OBJECTS.length);
-      console.log('⚡ Fallback lines.length =', DEFAULT_NAURZUM_LINES.length);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Synchronize local lines with context lines
   useEffect(() => {
-    loadDataFromSupabase();
-  }, []);
+    setLocalLines(powerLines);
+  }, [powerLines]);
+
+  // Log data length as requested
+  useEffect(() => {
+    console.log('⚡ [EnergySight] Данные карты загружены:');
+    console.log('⚡ objects.length =', objects.length, objects);
+    console.log('⚡ lines.length =', localLines.length, localLines);
+  }, [objects.length, localLines.length]);
+
+  // Filter objects by status
+  const filteredObjects = useMemo(() => {
+    if (statusFilter !== 'all') {
+      return objects.filter(o => o.status === statusFilter);
+    }
+    return objects;
+  }, [objects, statusFilter]);
 
   const selectedObject = useMemo(() => {
-    return objects.find(o => o.id === selectedObjId);
-  }, [objects, selectedObjId]);
+    return objects.find(o => o.id === selectedObjectId);
+  }, [objects, selectedObjectId]);
+
+  const handleOpenAddEvent = (obj: EnergyObject, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setTargetObjectForEvent(obj);
+    setIsAddEventModalOpen(true);
+  };
+
+  const handleNavigateToDetail = (objId: string) => {
+    setSelectedObjectId(objId);
+    setActiveTab('detail');
+  };
+
+  const getLatestEventForObject = (objectId: string) => {
+    return events.find(e => e.objectId === objectId);
+  };
+
+  // Toggle line status: normal (зеленая) -> maintenance (желтая) -> outage (красная)
+  const toggleLineStatus = (lineId: string, newStatus: LineStatus) => {
+    setLocalLines(prev =>
+      prev.map(line => (line.id === lineId ? { ...line, status: newStatus } : line))
+    );
+  };
 
   // Tile configuration
   const tileConfig = useMemo(() => {
@@ -295,7 +192,7 @@ export const NetworkMap: React.FC = () => {
     <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-slate-900">
       {/* Top Floating Overlay: Controls & Legend */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2 max-w-sm select-none">
-        <div className="p-4 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 shadow-[0_12px_40px_rgba(0,0,0,0.7)] space-y-3.5 text-slate-100">
+        <div className="p-4 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 shadow-[0_12px_40px_rgba(0,0,0,0.7)] space-y-3 text-slate-100">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-700/80 pb-2.5">
             <div>
@@ -303,76 +200,75 @@ export const NetworkMap: React.FC = () => {
                 <Zap className="h-4 w-4 text-cyan-400" />
                 ТОО "Межрегионэнерготранзит"
               </span>
-              <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5">
-                <Database className="h-3 w-3 text-cyan-400" />
-                {isSupabaseLive ? (
-                  <span className="text-emerald-400 font-semibold">База данных Supabase (Live)</span>
-                ) : (
-                  <span>Наурзумский район</span>
-                )}
-              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Наурзумские электрические сети</p>
             </div>
             <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-500/40">
-              {objects.length} узлов • {lines.length} ЛЭП
+              {objects.length} узлов • {localLines.length} ЛЭП
             </span>
+          </div>
+
+          {/* Line Status Legend (Цветовая индикация состояния линий) */}
+          <div className="space-y-1.5 text-[11px] font-mono border-b border-slate-700/80 pb-2.5 text-slate-300">
+            <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">
+              Состояние линий ЛЭП на карте:
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              <div className="flex items-center gap-1.5 p-1 rounded bg-slate-950 border border-emerald-500/30">
+                <span className="h-2 w-3 rounded-full bg-emerald-500 shadow-[0_0_6px_#10B981]" />
+                <span className="text-[10px] text-emerald-300 font-bold">Целая</span>
+              </div>
+              <div className="flex items-center gap-1.5 p-1 rounded bg-slate-950 border border-amber-500/30">
+                <span className="h-2 w-3 rounded-full bg-amber-400 shadow-[0_0_6px_#F59E0B]" />
+                <span className="text-[10px] text-amber-300 font-bold">Ремонт</span>
+              </div>
+              <div className="flex items-center gap-1.5 p-1 rounded bg-slate-950 border border-rose-500/30">
+                <span className="h-2 w-3 rounded-full bg-rose-500 shadow-[0_0_6px_#EF4444]" />
+                <span className="text-[10px] text-rose-300 font-bold">Авария</span>
+              </div>
+            </div>
           </div>
 
           {/* Map Base Layer Switcher */}
           <div>
-            <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1.5 flex items-center justify-between">
-              <span>Режим карты:</span>
+            <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1 flex items-center justify-between">
+              <span>Режим подложки карты:</span>
               <span className="text-cyan-400 font-semibold">
-                {tileStyle === 'light' ? 'Светлая (Voyager)' : tileStyle === 'osm' ? 'OSM' : tileStyle === 'satellite' ? 'Спутник' : 'Темная'}
+                {tileStyle === 'light' ? 'Светлая' : tileStyle === 'osm' ? 'OSM' : tileStyle === 'satellite' ? 'Спутник' : 'Темная'}
               </span>
             </div>
             <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950/80 rounded-xl border border-slate-800">
               <button
                 onClick={() => setTileStyle('light')}
-                className={`py-1.5 px-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
-                  tileStyle === 'light'
-                    ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-400 hover:text-white'
+                className={`py-1.5 px-1 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                  tileStyle === 'light' ? 'bg-cyan-500 text-slate-950 font-extrabold' : 'text-slate-400 hover:text-white'
                 }`}
-                title="Светлая детальная карта с названиями всех поселков"
               >
                 <Sun className="h-3 w-3" />
                 <span>Светлая</span>
               </button>
-
               <button
                 onClick={() => setTileStyle('osm')}
-                className={`py-1.5 px-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
-                  tileStyle === 'osm'
-                    ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-400 hover:text-white'
+                className={`py-1.5 px-1 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                  tileStyle === 'osm' ? 'bg-cyan-500 text-slate-950 font-extrabold' : 'text-slate-400 hover:text-white'
                 }`}
-                title="Карта OpenStreetMap"
               >
                 <Layers className="h-3 w-3" />
                 <span>OSM</span>
               </button>
-
               <button
                 onClick={() => setTileStyle('satellite')}
-                className={`py-1.5 px-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
-                  tileStyle === 'satellite'
-                    ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-400 hover:text-white'
+                className={`py-1.5 px-1 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                  tileStyle === 'satellite' ? 'bg-cyan-500 text-slate-950 font-extrabold' : 'text-slate-400 hover:text-white'
                 }`}
-                title="Спутниковая съемка"
               >
                 <Satellite className="h-3 w-3" />
                 <span>Спутник</span>
               </button>
-
               <button
                 onClick={() => setTileStyle('dark')}
-                className={`py-1.5 px-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
-                  tileStyle === 'dark'
-                    ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-400 hover:text-white'
+                className={`py-1.5 px-1 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                  tileStyle === 'dark' ? 'bg-cyan-500 text-slate-950 font-extrabold' : 'text-slate-400 hover:text-white'
                 }`}
-                title="Темная SCADA"
               >
                 <Moon className="h-3 w-3" />
                 <span>Темная</span>
@@ -380,35 +276,54 @@ export const NetworkMap: React.FC = () => {
             </div>
           </div>
 
-          {/* Action Button: Refresh / Add */}
+          {/* Quick Filter by Object Status */}
+          <div className="flex items-center justify-between gap-1.5 border-t border-slate-700/80 pt-2">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-semibold border transition-colors ${
+                statusFilter === 'all' ? 'bg-slate-800 text-white border-slate-600' : 'bg-slate-950 text-slate-400 border-slate-800'
+              }`}
+            >
+              Все ({objects.length})
+            </button>
+            <button
+              onClick={() => setStatusFilter(statusFilter === 'normal' ? 'all' : 'normal')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-semibold border transition-colors ${
+                statusFilter === 'normal' ? 'bg-emerald-950 text-emerald-300 border-emerald-500/50' : 'bg-slate-950 text-slate-400 border-slate-800'
+              }`}
+            >
+              Норма ({stats.normalCount})
+            </button>
+            <button
+              onClick={() => setStatusFilter(statusFilter === 'outage' ? 'all' : 'outage')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-semibold border transition-colors ${
+                statusFilter === 'outage' ? 'bg-rose-950 text-rose-300 border-rose-500/50' : 'bg-slate-950 text-slate-400 border-slate-800'
+              }`}
+            >
+              Авария ({stats.outageCount})
+            </button>
+          </div>
+
+          {/* Layer toggles */}
           <div className="flex items-center gap-2 pt-1 border-t border-slate-700/80">
             <button
-              onClick={loadDataFromSupabase}
-              disabled={isLoading}
-              className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-700"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 text-cyan-400 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>Обновить из базы</span>
-            </button>
-
-            <button
               onClick={() => setShowLines(!showLines)}
-              className={`py-1.5 px-2.5 rounded-lg text-xs font-semibold border transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] font-medium border transition-colors ${
                 showLines ? 'bg-cyan-950/80 border-cyan-500/40 text-cyan-300' : 'bg-slate-950 border-slate-800 text-slate-500'
               }`}
-              title="Переключить видимость линий"
             >
-              ЛЭП ({lines.length})
+              <Layers className="h-3 w-3" />
+              <span>ЛЭП ({localLines.length})</span>
             </button>
 
             <button
               onClick={() => setShowLabels(!showLabels)}
-              className={`py-1.5 px-2.5 rounded-lg text-xs font-semibold border transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] font-medium border transition-colors ${
                 showLabels ? 'bg-cyan-950/80 border-cyan-500/40 text-cyan-300' : 'bg-slate-950 border-slate-800 text-slate-500'
               }`}
-              title="Переключить подписи"
             >
-              Подписи
+              <Eye className="h-3 w-3" />
+              <span>Подписи</span>
             </button>
           </div>
         </div>
@@ -446,62 +361,50 @@ export const NetworkMap: React.FC = () => {
           maxZoom={19}
         />
 
-        {/* 3. Для каждой линии из lines: рисуем путь из path или прямую [from, to] */}
+        {/* Transmission Power Lines (ЛЭП): Цвет строго по состоянию (Зеленая - целая, Желтая - ремонт, Красная - авария) */}
         {showLines &&
-          lines.map(line => {
-            const fromObj = objects.find(o => o.id === line.from_object_id);
-            const toObj = objects.find(o => o.id === line.to_object_id);
+          localLines.map(line => {
+            const fromObj = objects.find(o => o.id === line.fromObjectId);
+            const toObj = objects.find(o => o.id === line.toObjectId);
 
-            // Если оба объекта найдены в objects
             if (!fromObj || !toObj) return null;
 
-            // Разрешение координат линии: если есть path — используем его, иначе прямая [from, to]
+            // Resolve coordinates: use path if defined, else straight [from, to]
             let linePositions: [number, number][] = [];
-            if (line.path) {
-              if (Array.isArray(line.path) && line.path.length > 0) {
-                linePositions = line.path;
-              } else if (typeof line.path === 'string') {
-                try {
-                  linePositions = JSON.parse(line.path);
-                } catch {
-                  linePositions = [
-                    [fromObj.latitude, fromObj.longitude],
-                    [toObj.latitude, toObj.longitude],
-                  ];
-                }
-              }
-            }
-            if (linePositions.length === 0) {
-              linePositions = [
-                [fromObj.latitude, fromObj.longitude],
-                [toObj.latitude, toObj.longitude],
-              ];
+            if (line.path && line.path.length > 0) {
+              linePositions = line.path;
+            } else if (line.coordinates && line.coordinates.length > 0) {
+              linePositions = line.coordinates;
+            } else {
+              linePositions = [fromObj.coordinates, toObj.coordinates];
             }
 
-            // Цветовая индикация по классу напряжения
-            let lineColor = '#059669'; // 110 кВ (зеленый)
-            let weight = 3.5;
+            // ЦВЕТ КАЖДОЙ ЛИНИИ СТРОГО ПО ТРЕБОВАНИЮ:
+            // 🟢 Зеленая (целая)
+            // 🟡 Желтая (в ремонте)
+            // 🔴 Красная (авария)
+            let lineColor = '#10B981'; // 🟢 зеленая (целая / normal)
             let dashArray: string | undefined = undefined;
 
-            if (line.voltage_class?.includes('110') || line.wire_type === 'АС-95') {
-              lineColor = '#059669'; // 110 кВ
-              weight = 3.5;
-            } else if (line.voltage_class?.includes('10')) {
-              lineColor = '#D97706'; // 10 кВ
-              weight = 2.5;
-            } else if (line.voltage_class?.includes('35') || line.wire_type === 'АС-70' || line.wire_type === 'АС-35') {
-              lineColor = '#DC2626'; // 35 кВ
-              weight = 3.0;
+            if (line.status === 'outage') {
+              lineColor = '#EF4444'; // 🔴 красная (авария)
+              dashArray = '6, 8';
+            } else if (line.status === 'maintenance') {
+              lineColor = '#F59E0B'; // 🟡 желтая (в ремонте)
+            } else {
+              lineColor = '#10B981'; // 🟢 зеленая (целая)
             }
 
-            if (line.status === 'demontirovana' || line.status === 'disconnected') {
-              dashArray = '6, 8';
-              lineColor = '#94A3B8'; // пунктирная для демонтированной/отключенной
-            }
+            // Толщина в зависимости от класса напряжения
+            const weight = line.voltageKV >= 110 ? 4.5 : line.voltageKV >= 35 ? 3.5 : 2.5;
+
+            // Voltage Badge color
+            const voltageBadgeBg =
+              line.voltageKV >= 110 ? 'bg-blue-600' : line.voltageKV >= 35 ? 'bg-purple-600' : 'bg-amber-600';
 
             return (
               <Polyline
-                key={`line-${line.id}-${line.from_object_id}-${line.to_object_id}`}
+                key={`line-${line.id}`}
                 positions={linePositions}
                 pathOptions={{
                   color: lineColor,
@@ -512,36 +415,150 @@ export const NetworkMap: React.FC = () => {
                   lineJoin: 'round',
                 }}
               >
+                {/* Tooltip с отображением класса напряжения 110, 35, 10 и статуса */}
                 <Tooltip sticky className="dark-map-tooltip">
-                  <div className="p-2 text-xs font-mono bg-slate-950 text-white rounded-lg border border-slate-700 shadow-xl">
-                    <strong className="text-white block text-[13px] font-bold border-b border-slate-800 pb-1">
-                      {line.line_name || `ВЛ «${fromObj.name} — ${toObj.name}»`}
-                    </strong>
-                    <div className="text-slate-300 text-[11px] mt-1 space-y-0.5">
-                      <div>Марка провода: <strong className="text-cyan-300 font-bold">{line.wire_type || 'АС'}</strong> • Длина: <strong className="text-white">{line.length_km || '—'} км</strong></div>
-                      <div>Класс: <strong>{line.voltage_class || '35 кВ'}</strong></div>
-                      <div>Статус: <span className={line.status === 'active' ? 'text-emerald-400' : 'text-slate-400'}>{line.status || 'active'}</span></div>
-                      {line.path && <div className="text-amber-400 text-[10px]">Трасса с изломом (промежуточные точки)</div>}
+                  <div className="p-2.5 text-xs font-mono bg-slate-950 text-white rounded-xl border border-slate-700 shadow-2xl space-y-1.5 min-w-[220px]">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-1.5">
+                      <strong className="text-white text-[12px] font-bold">
+                        {line.name}
+                      </strong>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold text-white font-mono ${voltageBadgeBg}`}>
+                        {line.voltageKV} кВ
+                      </span>
+                    </div>
+
+                    <div className="text-slate-300 text-[11px] space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Марка провода:</span>
+                        <strong className="text-cyan-300">{line.wireType || 'АС'}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Протяжённость:</span>
+                        <strong className="text-white">{line.lengthKm || '—'} км</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Поток мощности:</span>
+                        <strong className="text-emerald-400">{line.powerFlowMW} МВт</strong>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t border-slate-800">
+                        <span className="text-slate-400">Состояние:</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${
+                            line.status === 'normal'
+                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                              : line.status === 'maintenance'
+                              ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                              : 'bg-rose-950 text-rose-300 border border-rose-500/40'
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              line.status === 'normal'
+                                ? 'bg-emerald-400'
+                                : line.status === 'maintenance'
+                                ? 'bg-amber-400'
+                                : 'bg-rose-400 animate-pulse'
+                            }`}
+                          />
+                          {line.status === 'normal'
+                            ? 'Целая (Норма)'
+                            : line.status === 'maintenance'
+                            ? 'В ремонте'
+                            : 'Авария'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </Tooltip>
+
+                {/* Popup for Line Inspection & Status Switch */}
+                <Popup className="custom-scada-popup">
+                  <div className="p-3 space-y-2.5 bg-slate-900 text-white rounded-xl text-xs font-mono">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <div>
+                        <span className="text-[10px] text-cyan-400 font-bold block uppercase">
+                          ЛЭП {line.voltageKV} кВ
+                        </span>
+                        <h4 className="text-sm font-bold text-white">{line.name}</h4>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold text-white ${voltageBadgeBg}`}>
+                        {line.voltageKV} кВ
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 text-slate-300 text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Провод:</span>
+                        <strong className="text-white">{line.wireType || 'АС'}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Длина:</span>
+                        <strong className="text-white">{line.lengthKm || '—'} км</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Габариты:</span>
+                        <strong className="text-white">{line.voltageClass || `${line.voltageKV} кВ`}</strong>
+                      </div>
+                    </div>
+
+                    {/* Operational Status Switcher */}
+                    <div className="pt-2 border-t border-slate-800">
+                      <span className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">
+                        Оперативное состояние линии:
+                      </span>
+                      <div className="grid grid-cols-3 gap-1">
+                        <button
+                          onClick={() => toggleLineStatus(line.id, 'normal')}
+                          className={`py-1 px-1.5 rounded text-[10px] font-bold transition-all ${
+                            line.status === 'normal'
+                              ? 'bg-emerald-500 text-slate-950 shadow-md'
+                              : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          🟢 Целая
+                        </button>
+                        <button
+                          onClick={() => toggleLineStatus(line.id, 'maintenance')}
+                          className={`py-1 px-1.5 rounded text-[10px] font-bold transition-all ${
+                            line.status === 'maintenance'
+                              ? 'bg-amber-500 text-slate-950 shadow-md'
+                              : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          🟡 Ремонт
+                        </button>
+                        <button
+                          onClick={() => toggleLineStatus(line.id, 'outage')}
+                          className={`py-1 px-1.5 rounded text-[10px] font-bold transition-all ${
+                            line.status === 'outage'
+                              ? 'bg-rose-500 text-white shadow-md'
+                              : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          🔴 Авария
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </Popup>
               </Polyline>
             );
           })}
 
-        {/* 2. Для каждого объекта из objects ставим маркер Leaflet: position={[obj.latitude, obj.longitude]} */}
-        {objects.map(obj => {
-          const isSelected = obj.id === selectedObjId;
+        {/* Substation Markers */}
+        {filteredObjects.map(obj => {
+          const isSelected = obj.id === selectedObjectId;
           const isEndpoint = obj.type === 'тупиковая точка';
+          const latestEvent = getLatestEventForObject(obj.id);
 
           return (
             <Marker
               key={`obj-${obj.id}`}
-              position={[obj.latitude, obj.longitude]}
-              icon={createObjectIcon(obj.status, isSelected, isEndpoint)}
+              position={obj.coordinates}
+              icon={createObjectIcon(obj.status, obj.voltageClassKV, isSelected, isEndpoint)}
               eventHandlers={{
                 click: () => {
-                  setSelectedObjId(obj.id);
+                  setSelectedObjectId(obj.id);
                 },
               }}
             >
@@ -561,36 +578,64 @@ export const NetworkMap: React.FC = () => {
               )}
 
               {/* Marker Click Popup */}
-              <Popup className="custom-scada-popup" minWidth={260} maxWidth={300}>
-                <div className="p-4 space-y-2.5 bg-slate-900 text-white rounded-xl">
-                  <div className="border-b border-slate-800 pb-2">
-                    <span className="text-[10px] font-mono font-bold text-cyan-400 block uppercase">
-                      ID: {obj.id} • {obj.district || 'Наурзумский'}
-                    </span>
-                    <h4 className="text-sm font-bold text-white leading-tight mt-0.5">
-                      {obj.name}
-                    </h4>
+              <Popup className="custom-scada-popup" minWidth={280} maxWidth={320}>
+                <div className="p-4 space-y-3 bg-slate-900 text-white rounded-xl">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-2.5">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-cyan-400 block uppercase">
+                        {obj.code} • {obj.district}
+                      </span>
+                      <h4 className="text-sm font-bold text-white leading-tight mt-0.5">
+                        {obj.name}
+                      </h4>
+                    </div>
+                    <StatusBadge status={obj.status} size="sm" />
                   </div>
 
-                  <div className="space-y-1 text-xs font-mono text-slate-300">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Тип:</span>
-                      <strong className="text-white">{obj.type || 'узел'}</strong>
+                  {/* Quick Specs */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Мощность:</span>
+                      <strong className="text-cyan-300">{obj.telemetry.activePowerMW} МВт</strong>
+                      <span className="text-[10px] text-slate-500 block">из {obj.installedCapacityMVA} МВА</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Широта (Lat):</span>
-                      <strong className="text-cyan-300">{obj.latitude}</strong>
+
+                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Напряжение U:</span>
+                      <strong className="text-emerald-400">{obj.telemetry.voltageKV} кВ</strong>
+                      <span className="text-[10px] text-slate-500 block">f = {obj.telemetry.frequencyHz} Гц</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Долгота (Lng):</span>
-                      <strong className="text-cyan-300">{obj.longitude}</strong>
+                  </div>
+
+                  {/* Latest Event Note */}
+                  {latestEvent && (
+                    <div className="p-2 rounded-lg bg-slate-950/70 border border-slate-800 text-[11px]">
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
+                        <span className="font-semibold text-slate-300">Последнее событие:</span>
+                        <span>{formatRelativeTime(latestEvent.timestamp)}</span>
+                      </div>
+                      <p className="text-slate-300 line-clamp-1 italic">{latestEvent.title}</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Статус:</span>
-                      <strong className={obj.status === 'демонтирован' ? 'text-slate-400' : 'text-emerald-400'}>
-                        {obj.status || 'норма'}
-                      </strong>
-                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() => handleOpenAddEvent(obj)}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border border-slate-700"
+                    >
+                      <PlusCircle className="h-3.5 w-3.5 text-amber-400" />
+                      <span>Событие</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleNavigateToDetail(obj.id)}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all"
+                    >
+                      <span>Паспорт</span>
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               </Popup>
@@ -599,64 +644,149 @@ export const NetworkMap: React.FC = () => {
         })}
       </MapContainer>
 
-      {/* Quick Drawer if an object is selected */}
+      {/* Slide-out Quick Details Drawer (Right Side) */}
       {selectedObject && (
-        <div className="absolute top-4 right-4 bottom-4 z-[1000] w-80 rounded-2xl bg-slate-900/95 backdrop-blur-2xl border border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden animate-fade-in text-white">
+        <div className="absolute top-4 right-4 bottom-4 z-[1000] w-80 lg:w-96 rounded-2xl bg-slate-900/95 backdrop-blur-2xl border border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden animate-fade-in text-white">
+          {/* Header */}
           <div className="p-4 border-b border-slate-800 bg-slate-950/80 flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
-                ID #{selectedObject.id}
-              </span>
-              <h3 className="text-base font-bold text-white leading-tight mt-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
+                  {selectedObject.code}
+                </span>
+                <StatusBadge status={selectedObject.status} size="sm" />
+              </div>
+              <h3 className="text-base font-bold text-white leading-tight">
                 {selectedObject.name}
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">{selectedObject.district} • {selectedObject.type}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{selectedObject.district} • {selectedObject.address}</p>
             </div>
             <button
-              onClick={() => setSelectedObjId(null)}
+              onClick={() => setSelectedObjectId(null)}
               className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="p-4 space-y-3 overflow-y-auto flex-1 text-xs font-mono">
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Точные координаты из базы (без округлений)
-              </span>
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-500">Широта (Latitude):</span>
-                <span className="text-cyan-300 font-bold">{selectedObject.latitude}</span>
+          {/* Body Content */}
+          <div className="p-4 space-y-4 overflow-y-auto flex-1 text-xs">
+            {/* Live Telemetry Card */}
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Gauge className="h-3.5 w-3.5 text-cyan-400" />
+                  Телеметрия в реальном времени
+                </span>
+                <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  ONLINE
+                </span>
               </div>
-              <div className="flex justify-between py-1">
-                <span className="text-slate-500">Долгота (Longitude):</span>
-                <span className="text-cyan-300 font-bold">{selectedObject.longitude}</span>
+
+              <div className="grid grid-cols-2 gap-2 font-mono">
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] text-slate-500 block">Активная мощность P:</span>
+                  <span className="text-sm font-bold text-cyan-300">
+                    {selectedObject.telemetry?.activePowerMW || 0} МВт
+                  </span>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] text-slate-500 block">Реактивная мощн. Q:</span>
+                  <span className="text-sm font-bold text-slate-200">
+                    {selectedObject.telemetry?.reactivePowerMvar || 0} МВар
+                  </span>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] text-slate-500 block">Напряжение U:</span>
+                  <span className="text-sm font-bold text-emerald-400">
+                    {selectedObject.telemetry?.voltageKV || 0} кВ
+                  </span>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] text-slate-500 block">Частота сети:</span>
+                  <span className="text-sm font-bold text-slate-200">
+                    {selectedObject.telemetry?.frequencyHz || 50.00} Гц
+                  </span>
+                </div>
+              </div>
+
+              {/* Load Bar */}
+              <div>
+                <div className="flex justify-between text-[11px] font-mono text-slate-400 mb-1">
+                  <span>Загрузка трансформаторов:</span>
+                  <strong className="text-slate-200">{selectedObject.loadPercentage || 0}%</strong>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-900 overflow-hidden">
+                  <div
+                    style={{ width: `${selectedObject.loadPercentage || 0}%` }}
+                    className={`h-full transition-all duration-500 ${
+                      (selectedObject.loadPercentage || 0) > 85
+                        ? 'bg-rose-500'
+                        : (selectedObject.loadPercentage || 0) > 70
+                        ? 'bg-amber-500'
+                        : 'bg-cyan-500'
+                    }`}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5 text-slate-300">
-              <div className="flex justify-between py-1 border-b border-slate-800">
-                <span className="text-slate-500">Тип объекта:</span>
-                <span className="text-white">{selectedObject.type}</span>
+            {/* Equipment Passport Snapshot */}
+            <div className="space-y-2 text-slate-300">
+              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
+                <span className="text-slate-400">Класс напряжения:</span>
+                <span className="font-mono font-semibold text-white">{selectedObject.voltageClassKV} кВ</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-800">
-                <span className="text-slate-500">Оперативный статус:</span>
-                <span className="text-emerald-400">{selectedObject.status}</span>
+
+              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
+                <span className="text-slate-400">Установл. мощность:</span>
+                <span className="font-mono font-semibold text-cyan-300">{selectedObject.installedCapacityMVA} МВА</span>
               </div>
-              <div className="flex justify-between py-1">
-                <span className="text-slate-500">Район:</span>
-                <span className="text-white">{selectedObject.district}</span>
+
+              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
+                <span className="text-slate-400">Кол-во трансформаторов:</span>
+                <span className="font-mono font-semibold text-white">{selectedObject.transformersCount} шт</span>
+              </div>
+
+              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
+                <span className="text-slate-400">Год ввода в экспл.:</span>
+                <span className="font-mono text-white">{selectedObject.installationYear} г.</span>
+              </div>
+
+              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
+                <span className="text-slate-400">Посл. обслуживание:</span>
+                <span className="font-mono text-cyan-300 font-semibold">
+                  {selectedObject.lastMaintenanceDate || '—'}
+                </span>
+              </div>
+
+              <div className="flex justify-between py-1.5 text-[11px]">
+                <span className="text-slate-400">Ответственный инженер:</span>
+                <span className="font-medium text-white">{selectedObject.chiefEngineer}</span>
               </div>
             </div>
           </div>
 
-          <div className="p-3 border-t border-slate-800 bg-slate-950/60">
+          {/* Footer Actions */}
+          <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center gap-2.5">
             <button
-              onClick={() => setSelectedObjId(null)}
-              className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+              onClick={() => handleOpenAddEvent(selectedObject)}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-all border border-slate-700"
             >
-              Закрыть панель
+              <PlusCircle className="h-4 w-4 text-amber-400" />
+              <span>Зафиксировать</span>
+            </button>
+
+            <button
+              onClick={() => handleNavigateToDetail(selectedObject.id)}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all font-sans"
+            >
+              <span>Вся карточка</span>
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -667,6 +797,18 @@ export const NetworkMap: React.FC = () => {
         isOpen={isAddSubstationModalOpen}
         onClose={() => setIsAddSubstationModalOpen(false)}
       />
+
+      {/* Add Event Modal */}
+      {targetObjectForEvent && (
+        <AddEventModal
+          isOpen={isAddEventModalOpen}
+          onClose={() => {
+            setIsAddEventModalOpen(false);
+            setTargetObjectForEvent(null);
+          }}
+          targetObject={targetObjectForEvent}
+        />
+      )}
     </div>
   );
 };

@@ -4,8 +4,8 @@ import { INITIAL_OBJECTS, INITIAL_EVENTS } from './mockData';
 
 // Config stored in localStorage for easy demo/configuration
 const SUPABASE_CONFIG_KEY = 'energysight_supabase_config';
-const OBJECTS_STORAGE_KEY = 'energysight_objects_v5';
-const EVENTS_STORAGE_KEY = 'energysight_events_v5';
+const OBJECTS_STORAGE_KEY = 'energysight_objects_v6';
+const EVENTS_STORAGE_KEY = 'energysight_events_v6';
 
 export interface SupabaseConfig {
   url: string;

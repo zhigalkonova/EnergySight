@@ -1,5 +1,7 @@
 export type ObjectStatus = 'normal' | 'maintenance' | 'outage';
 
+export type LineStatus = 'normal' | 'maintenance' | 'outage';
+
 export type ObjectType = 
   | 'ПС 220/110/10 кВ'
   | 'ПС 110/35/10 кВ'
@@ -10,7 +12,8 @@ export type ObjectType =
   | 'подстанция/узел'
   | 'узел'
   | 'РП'
-  | 'ПС (демонтирована)';
+  | 'ПС (демонтирована)'
+  | 'тупиковая точка';
 
 export type EventType = 'accident' | 'repair' | 'restoration' | 'inspection' | 'relay_protection';
 
@@ -71,16 +74,17 @@ export interface GridEvent {
 export interface PowerLine {
   id: string;
   name: string;
-  voltageKV: number;
+  voltageKV: number; // 110, 35, 10, 220
   fromObjectId: string;
   toObjectId: string;
   coordinates: [number, number][];
-  status: 'active' | 'overloaded' | 'disconnected';
+  status: LineStatus; // 'normal' (целая - зеленая), 'maintenance' (в ремонте - желтая), 'outage' (авария - красная)
   powerFlowMW: number;
   maxCapacityMW: number;
   wireType?: string;
   lengthKm?: number;
   voltageClass?: string;
+  path?: [number, number][];
 }
 
 // Прямые структуры таблиц Supabase (как в SQL схеме)
