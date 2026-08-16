@@ -18,8 +18,13 @@ CREATE TABLE IF NOT EXISTS lines (
     voltage_class TEXT,       -- например 'в габаритах 110 кВ', 'в режиме 10 кВ'
     status TEXT DEFAULT 'active',
     line_name TEXT,           -- например 'Наурзум-Сарбулак'
+    path JSONB,                -- НОВОЕ: массив промежуточных точек [[lat,lon], [lat,lon], ...]
+                                -- если NULL — рисуем просто прямую от from_object к to_object
     created_at TIMESTAMP DEFAULT now()
 );
+
+-- Если таблица lines уже существует без колонки path — добавь её отдельно:
+-- ALTER TABLE lines ADD COLUMN IF NOT EXISTS path JSONB;
 
 -- ============================================================
 -- 1. ОБЪЕКТЫ (узлы сети)
@@ -106,6 +111,38 @@ VALUES
         (SELECT id FROM objects WHERE name = 'Дамды'),
         (SELECT id FROM objects WHERE name = 'ПС Кожахмет'),
         'АС-70', 46.1, 'в габаритах 35 кВ', NULL, 'demontirovana'
+    );
+
+-- ============================================================
+-- 2а. ИЗЛОМ линии Дамды -> ПС Кожахмет (единственная линия района
+--     с реальным поворотом на схеме, не прямая)
+-- ============================================================
+UPDATE lines
+SET path = '[[51.2077, 65.0245], [51.0250, 64.9700], [50.7972, 64.9317]]'::jsonb
+WHERE from_object_id = (SELECT id FROM objects WHERE name = 'Дамды')
+  AND to_object_id   = (SELECT id FROM objects WHERE name = 'ПС Кожахмет');
+
+-- ============================================================
+-- 2б. Две тупиковые ВЛ-10кВ от ПС Кожахмет (длины на схеме не
+--     указаны, поставлены символически на ~15 км на запад,
+--     подкорректируй при наличии реальных данных)
+-- ============================================================
+INSERT INTO objects (name, type, district, latitude, longitude, status, last_maintenance)
+VALUES
+    ('Кайга (конец ВЛ-10кВ)',  'тупиковая точка', 'Наурзумский', 50.8100, 64.8100, 'норма', NULL),
+    ('Ц.У. (конец ВЛ-10кВ)',   'тупиковая точка', 'Наурзумский', 50.7850, 64.8150, 'норма', NULL);
+
+INSERT INTO lines (from_object_id, to_object_id, wire_type, length_km, voltage_class, line_name, status)
+VALUES
+    (
+        (SELECT id FROM objects WHERE name = 'ПС Кожахмет'),
+        (SELECT id FROM objects WHERE name = 'Кайга (конец ВЛ-10кВ)'),
+        NULL, NULL, '10 кВ', 'Кожахмет-Кайга', 'active'
+    ),
+    (
+        (SELECT id FROM objects WHERE name = 'ПС Кожахмет'),
+        (SELECT id FROM objects WHERE name = 'Ц.У. (конец ВЛ-10кВ)'),
+        NULL, NULL, '10 кВ', 'Кожахмет-Ц.У.', 'active'
     );
 
 -- ============================================================

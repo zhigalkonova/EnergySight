@@ -105,6 +105,7 @@ export interface SupabaseLine {
   voltage_class?: string;
   status?: string;
   line_name?: string;
+  path?: [number, number][] | string | null;
   created_at?: string;
 }
 

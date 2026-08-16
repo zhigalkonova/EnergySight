@@ -41,6 +41,8 @@ const DEFAULT_NAURZUM_OBJECTS: SupabaseObject[] = [
   { id: 9, name: 'Дамды', type: 'узел', district: 'Наурзумский', latitude: 51.2077, longitude: 65.0245, status: 'норма' },
   { id: 10, name: 'РП-10 кВ "п.Аксай"', type: 'РП', district: 'Наурзумский', latitude: 51.0708, longitude: 65.2997, status: 'норма' },
   { id: 11, name: 'ПС Кожахмет', type: 'ПС (демонтирована)', district: 'Наурзумский', latitude: 50.7972, longitude: 64.9317, status: 'демонтирован' },
+  { id: 12, name: 'Кайга (конец ВЛ-10кВ)', type: 'тупиковая точка', district: 'Наурзумский', latitude: 50.8100, longitude: 64.8100, status: 'норма' },
+  { id: 13, name: 'Ц.У. (конец ВЛ-10кВ)', type: 'тупиковая точка', district: 'Наурзумский', latitude: 50.7850, longitude: 64.8150, status: 'норма' },
 ];
 
 const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
@@ -55,7 +57,22 @@ const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
   { id: 9, from_object_id: 7, to_object_id: 9, wire_type: 'АС-70', length_km: 31.3, voltage_class: '35 кВ', status: 'active' },
   { id: 10, from_object_id: 8, to_object_id: 9, wire_type: 'АС-70', length_km: 28.8, voltage_class: '35 кВ', status: 'active' },
   { id: 11, from_object_id: 9, to_object_id: 10, wire_type: 'АС-35', length_km: 24.5, voltage_class: 'в габаритах 35 кВ', status: 'active' },
-  { id: 12, from_object_id: 9, to_object_id: 11, wire_type: 'АС-70', length_km: 46.1, voltage_class: 'в габаритах 35 кВ', status: 'demontirovana' },
+  {
+    id: 12,
+    from_object_id: 9,
+    to_object_id: 11,
+    wire_type: 'АС-70',
+    length_km: 46.1,
+    voltage_class: 'в габаритах 35 кВ',
+    status: 'demontirovana',
+    path: [
+      [51.2077, 65.0245],
+      [51.0250, 64.9700],
+      [50.7972, 64.9317],
+    ],
+  },
+  { id: 13, from_object_id: 11, to_object_id: 12, wire_type: 'АС-35', length_km: 15.0, voltage_class: '10 кВ', line_name: 'Кожахмет-Кайга', status: 'active' },
+  { id: 14, from_object_id: 11, to_object_id: 13, wire_type: 'АС-35', length_km: 15.0, voltage_class: '10 кВ', line_name: 'Кожахмет-Ц.У.', status: 'active' },
 ];
 
 type TileStyle = 'light' | 'osm' | 'satellite' | 'dark';
@@ -76,11 +93,11 @@ const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ c
 };
 
 // Create custom high-visibility SVG marker for objects
-const createObjectIcon = (status: string | undefined, isSelected: boolean) => {
+const createObjectIcon = (status: string | undefined, isSelected: boolean, isEndpoint?: boolean) => {
   const isOutage = status === 'авария' || status === 'outage';
   const isMaintenance = status === 'ремонт' || status === 'maintenance' || status === 'демонтирован';
   
-  let color = '#10B981'; // normal (green)
+  let color = isEndpoint ? '#38BDF8' : '#10B981'; // normal (green) or cyan for endpoints
   let ringColor = 'rgba(16, 185, 129, 0.4)';
   if (isOutage) {
     color = '#EF4444';
@@ -94,13 +111,16 @@ const createObjectIcon = (status: string | undefined, isSelected: boolean) => {
     ? `<div style="position: absolute; inset: -6px; border: 2.5px dashed #0284C7; border-radius: 9999px; animation: spin 8s linear infinite;"></div>`
     : '';
 
+  const size = isEndpoint ? 28 : 38;
+  const innerSize = isEndpoint ? 20 : 28;
+
   const html = `
-    <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-      <div style="position: absolute; width: 30px; height: 30px; border-radius: 9999px; background: ${ringColor}; pointer-events: none;"></div>
+    <div style="position: relative; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <div style="position: absolute; width: ${size - 8}px; height: ${size - 8}px; border-radius: 9999px; background: ${ringColor}; pointer-events: none;"></div>
       ${selectedPulse}
       
-      <div style="position: relative; z-index: 10; width: 28px; height: 28px; border-radius: 8px; background: #0F172A; border: 2px solid ${color}; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <div style="position: relative; z-index: 10; width: ${innerSize}px; height: ${innerSize}px; border-radius: 7px; background: #0F172A; border: 2px solid ${color}; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+        <svg width="${innerSize * 0.5}" height="${innerSize * 0.5}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
         </svg>
       </div>
@@ -110,9 +130,9 @@ const createObjectIcon = (status: string | undefined, isSelected: boolean) => {
   return L.divIcon({
     html,
     className: 'custom-substation-marker',
-    iconSize: [38, 38],
-    iconAnchor: [19, 19],
-    popupAnchor: [0, -20],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
   });
 };
 
@@ -235,7 +255,7 @@ export const NetworkMap: React.FC = () => {
                 {isSupabaseLive ? (
                   <span className="text-emerald-400 font-semibold">База данных Supabase (Live)</span>
                 ) : (
-                  <span>Наурзумский район (Локально)</span>
+                  <span>Наурзумский район</span>
                 )}
               </p>
             </div>
@@ -373,7 +393,7 @@ export const NetworkMap: React.FC = () => {
           maxZoom={19}
         />
 
-        {/* 3. Для каждой линии из lines находим координаты начала и конца через from_object_id и to_object_id */}
+        {/* 3. Для каждой линии из lines: рисуем путь из path или прямую [from, to] */}
         {showLines &&
           lines.map(line => {
             const fromObj = objects.find(o => o.id === line.from_object_id);
@@ -381,6 +401,29 @@ export const NetworkMap: React.FC = () => {
 
             // Если оба объекта найдены в objects
             if (!fromObj || !toObj) return null;
+
+            // Разрешение координат линии: если есть path — используем его, иначе прямая [from, to]
+            let linePositions: [number, number][] = [];
+            if (line.path) {
+              if (Array.isArray(line.path) && line.path.length > 0) {
+                linePositions = line.path;
+              } else if (typeof line.path === 'string') {
+                try {
+                  linePositions = JSON.parse(line.path);
+                } catch {
+                  linePositions = [
+                    [fromObj.latitude, fromObj.longitude],
+                    [toObj.latitude, toObj.longitude],
+                  ];
+                }
+              }
+            }
+            if (linePositions.length === 0) {
+              linePositions = [
+                [fromObj.latitude, fromObj.longitude],
+                [toObj.latitude, toObj.longitude],
+              ];
+            }
 
             // Цветовая индикация по классу напряжения
             let lineColor = '#059669'; // 110 кВ (зеленый)
@@ -406,10 +449,7 @@ export const NetworkMap: React.FC = () => {
             return (
               <Polyline
                 key={`line-${line.id}-${line.from_object_id}-${line.to_object_id}`}
-                positions={[
-                  [fromObj.latitude, fromObj.longitude],
-                  [toObj.latitude, toObj.longitude],
-                ]}
+                positions={linePositions}
                 pathOptions={{
                   color: lineColor,
                   weight: weight,
@@ -428,6 +468,7 @@ export const NetworkMap: React.FC = () => {
                       <div>Марка провода: <strong className="text-cyan-300 font-bold">{line.wire_type || 'АС'}</strong> • Длина: <strong className="text-white">{line.length_km || '—'} км</strong></div>
                       <div>Класс: <strong>{line.voltage_class || '35 кВ'}</strong></div>
                       <div>Статус: <span className={line.status === 'active' ? 'text-emerald-400' : 'text-slate-400'}>{line.status || 'active'}</span></div>
+                      {line.path && <div className="text-amber-400 text-[10px]">Трасса с изломом (промежуточные точки)</div>}
                     </div>
                   </div>
                 </Tooltip>
@@ -438,12 +479,13 @@ export const NetworkMap: React.FC = () => {
         {/* 2. Для каждого объекта из objects ставим маркер Leaflet: position={[obj.latitude, obj.longitude]} */}
         {objects.map(obj => {
           const isSelected = obj.id === selectedObjId;
+          const isEndpoint = obj.type === 'тупиковая точка';
 
           return (
             <Marker
               key={`obj-${obj.id}`}
               position={[obj.latitude, obj.longitude]}
-              icon={createObjectIcon(obj.status, isSelected)}
+              icon={createObjectIcon(obj.status, isSelected, isEndpoint)}
               eventHandlers={{
                 click: () => {
                   setSelectedObjId(obj.id);
