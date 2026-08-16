@@ -35,7 +35,9 @@ export interface EnergyObject {
   status: ObjectStatus;
   district: string;
   address: string;
-  coordinates: [number, number]; // [lat, lng]
+  coordinates: [number, number]; // [latitude, longitude]
+  latitude?: number;
+  longitude?: number;
   installedCapacityMVA: number;
   currentLoadMVA: number;
   loadPercentage: number;
@@ -79,6 +81,31 @@ export interface PowerLine {
   wireType?: string;
   lengthKm?: number;
   voltageClass?: string;
+}
+
+// Прямые структуры таблиц Supabase (как в SQL схеме)
+export interface SupabaseObject {
+  id: number | string;
+  name: string;
+  type?: string;
+  district?: string;
+  latitude: number;
+  longitude: number;
+  status?: string;
+  last_maintenance?: string;
+  created_at?: string;
+}
+
+export interface SupabaseLine {
+  id: number | string;
+  from_object_id: number | string;
+  to_object_id: number | string;
+  wire_type?: string;
+  length_km?: number;
+  voltage_class?: string;
+  status?: string;
+  line_name?: string;
+  created_at?: string;
 }
 
 export type ActiveTab = 'map' | 'registry' | 'detail' | 'events' | 'dashboard';

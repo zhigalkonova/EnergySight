@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import {
@@ -19,26 +19,54 @@ import {
   Sun,
   Moon,
   Satellite,
-  Trash2,
+  RefreshCw,
+  Database,
 } from 'lucide-react';
 import { useEnergy } from '../../context/EnergyContext';
-import { EnergyObject, ObjectStatus, PowerLine } from '../../types/energy';
-import { StatusBadge } from '../registry/StatusBadge';
+import { SupabaseObject, SupabaseLine } from '../../types/energy';
+import { getSupabaseClient } from '../../services/supabaseClient';
 import { AddEventModal } from '../object-detail/AddEventModal';
 import { AddSubstationModal } from './AddSubstationModal';
-import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
 
-// Geographic Centers
-const REGIONAL_CENTER: [number, number] = [52.6000, 63.8000]; // Full Kostanay Region
-const NAURZUM_CENTER: [number, number] = [51.5200, 64.7500];  // Naurzum district
-const KOSTANAY_CENTER: [number, number] = [53.2198, 63.6354]; // Kostanay city
+// Резервные данные из naurzum_district_insert.sql (если Supabase еще не настроен)
+const DEFAULT_NAURZUM_OBJECTS: SupabaseObject[] = [
+  { id: 1, name: 'Докучаевка (Караменды)', type: 'подстанция/узел', district: 'Наурзумский', latitude: 51.6458, longitude: 64.2197, status: 'норма' },
+  { id: 2, name: 'Сосновка', type: 'узел', district: 'Наурзумский', latitude: 51.6420, longitude: 64.4306, status: 'норма' },
+  { id: 3, name: 'Буревестник', type: 'узел', district: 'Наурзумский', latitude: 50.9641, longitude: 64.3725, status: 'норма' },
+  { id: 4, name: 'Семилетка', type: 'узел', district: 'Наурзумский', latitude: 51.7902, longitude: 64.8905, status: 'норма' },
+  { id: 5, name: 'Шолоксай', type: 'узел', district: 'Наурзумский', latitude: 52.1186, longitude: 64.8950, status: 'норма' },
+  { id: 6, name: 'Ушакова', type: 'узел', district: 'Наурзумский', latitude: 51.6737, longitude: 65.1183, status: 'норма' },
+  { id: 7, name: 'Панфилова', type: 'узел', district: 'Наурзумский', latitude: 51.5466, longitude: 65.0825, status: 'норма' },
+  { id: 8, name: 'Кожа', type: 'узел', district: 'Наурзумский', latitude: 51.3348, longitude: 64.7655, status: 'норма' },
+  { id: 9, name: 'Дамды', type: 'узел', district: 'Наурзумский', latitude: 51.2077, longitude: 65.0245, status: 'норма' },
+  { id: 10, name: 'РП-10 кВ "п.Аксай"', type: 'РП', district: 'Наурзумский', latitude: 51.0488, longitude: 65.1093, status: 'норма' },
+  { id: 11, name: 'ПС Кожахмет', type: 'ПС (демонтирована)', district: 'Наурзумский', latitude: 50.5404, longitude: 64.9843, status: 'демонтирован' },
+];
+
+const DEFAULT_NAURZUM_LINES: SupabaseLine[] = [
+  { id: 1, from_object_id: 1, to_object_id: 4, wire_type: 'АС-95', length_km: 43.5, voltage_class: 'в габаритах 110 кВ', status: 'active' },
+  { id: 2, from_object_id: 1, to_object_id: 4, wire_type: 'АС-50', length_km: 22.5, voltage_class: 'в режиме 10 кВ', line_name: 'Наурзум-Сарбулак', status: 'active' },
+  { id: 3, from_object_id: 2, to_object_id: 1, wire_type: 'АС-95', length_km: 53.4, voltage_class: 'в габаритах 110 кВ', status: 'active' },
+  { id: 4, from_object_id: 2, to_object_id: 3, wire_type: 'АС-95', length_km: 30.9, voltage_class: 'в габаритах 110 кВ', status: 'active' },
+  { id: 5, from_object_id: 4, to_object_id: 5, wire_type: 'АС-50', length_km: 29.2, voltage_class: '35 кВ', status: 'active' },
+  { id: 6, from_object_id: 4, to_object_id: 8, wire_type: 'АС-70', length_km: 34.2, voltage_class: '35 кВ', status: 'active' },
+  { id: 7, from_object_id: 4, to_object_id: 6, wire_type: 'АС-95', length_km: 48.6, voltage_class: 'в габаритах 110 кВ', status: 'active' },
+  { id: 8, from_object_id: 6, to_object_id: 7, wire_type: 'АС-70', length_km: 9.8, voltage_class: '35 кВ', status: 'active' },
+  { id: 9, from_object_id: 7, to_object_id: 9, wire_type: 'АС-70', length_km: 31.3, voltage_class: '35 кВ', status: 'active' },
+  { id: 10, from_object_id: 8, to_object_id: 9, wire_type: 'АС-70', length_km: 28.8, voltage_class: '35 кВ', status: 'active' },
+  { id: 11, from_object_id: 9, to_object_id: 10, wire_type: 'АС-35', length_km: 24.5, voltage_class: 'в габаритах 35 кВ', status: 'active' },
+  { id: 12, from_object_id: 9, to_object_id: 11, wire_type: 'АС-70', length_km: 46.1, voltage_class: 'в габаритах 35 кВ', status: 'demontirovana' },
+];
 
 type TileStyle = 'light' | 'osm' | 'satellite' | 'dark';
+
+// Center of Naurzum District
+const MAP_CENTER: [number, number] = [51.5200, 64.7500];
 
 // Recenter Map Helper
 const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ center, zoom }) => {
   const map = useMap();
-  React.useEffect(() => {
+  useEffect(() => {
     map.setView(center, zoom, { animate: true });
     setTimeout(() => {
       map.invalidateSize();
@@ -47,42 +75,34 @@ const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ c
   return null;
 };
 
-// Create high-contrast SVG DivIcon for light/satellite/dark maps
-const createSubstationIcon = (status: ObjectStatus, voltageKV: number, isSelected: boolean) => {
-  let statusColor = '#10B981'; // normal
-  let glowColor = 'rgba(16, 185, 129, 0.4)';
-  let radarClass = 'scada-radar-normal';
-
-  if (status === 'outage') {
-    statusColor = '#EF4444';
-    glowColor = 'rgba(239, 68, 68, 0.7)';
-    radarClass = 'scada-radar-danger';
-  } else if (status === 'maintenance') {
-    statusColor = '#F59E0B';
-    glowColor = 'rgba(245, 158, 11, 0.6)';
-    radarClass = 'scada-radar-warning';
+// Create custom high-visibility SVG marker for objects
+const createObjectIcon = (status: string | undefined, isSelected: boolean) => {
+  const isOutage = status === 'авария' || status === 'outage';
+  const isMaintenance = status === 'ремонт' || status === 'maintenance' || status === 'демонтирован';
+  
+  let color = '#10B981'; // normal (green)
+  let ringColor = 'rgba(16, 185, 129, 0.4)';
+  if (isOutage) {
+    color = '#EF4444';
+    ringColor = 'rgba(239, 68, 68, 0.7)';
+  } else if (isMaintenance) {
+    color = '#F59E0B';
+    ringColor = 'rgba(245, 158, 11, 0.6)';
   }
 
-  const voltageColor = voltageKV >= 220 ? '#2563EB' : voltageKV >= 110 ? '#059669' : voltageKV >= 35 ? '#DC2626' : '#D97706';
-
-  const selectedRing = isSelected
-    ? `<div style="position: absolute; inset: -7px; border: 3px dashed #0284C7; border-radius: 9999px; animation: spin 8s linear infinite;"></div>`
+  const selectedPulse = isSelected
+    ? `<div style="position: absolute; inset: -6px; border: 2.5px dashed #0284C7; border-radius: 9999px; animation: spin 8s linear infinite;"></div>`
     : '';
 
   const html = `
-    <div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-      <!-- Radar pulse -->
-      <div class="${radarClass}" style="position: absolute; width: 36px; height: 36px; border-radius: 9999px; background: ${glowColor}; pointer-events: none;"></div>
-      ${selectedRing}
+    <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <div style="position: absolute; width: 30px; height: 30px; border-radius: 9999px; background: ${ringColor}; pointer-events: none;"></div>
+      ${selectedPulse}
       
-      <!-- Substation Node Container -->
-      <div style="position: relative; z-index: 10; width: 34px; height: 34px; border-radius: 10px; background: #0F172A; border: 2.5px solid ${statusColor}; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${voltageColor}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <div style="position: relative; z-index: 10; width: 28px; height: 28px; border-radius: 8px; background: #0F172A; border: 2px solid ${color}; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
         </svg>
-        <span style="font-size: 8.5px; font-weight: 900; font-family: 'JetBrains Mono', monospace; color: #FFFFFF; line-height: 1; margin-top: 1px;">
-          ${voltageKV}
-        </span>
       </div>
     </div>
   `;
@@ -90,88 +110,89 @@ const createSubstationIcon = (status: ObjectStatus, voltageKV: number, isSelecte
   return L.divIcon({
     html,
     className: 'custom-substation-marker',
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
-    popupAnchor: [0, -24],
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
+    popupAnchor: [0, -20],
   });
 };
 
 export const NetworkMap: React.FC = () => {
-  const {
-    objects,
-    powerLines,
-    statusFilter,
-    setStatusFilter,
-    selectedObjectId,
-    setSelectedObjectId,
-    setActiveTab,
-    events,
-    stats,
-    clearAllObjects,
-  } = useEnergy();
+  const [objects, setObjects] = useState<SupabaseObject[]>([]);
+  const [lines, setLines] = useState<SupabaseLine[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSupabaseLive, setIsSupabaseLive] = useState(false);
+  const [selectedObjId, setSelectedObjId] = useState<string | number | null>(null);
 
   const [showLines, setShowLines] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [tileStyle, setTileStyle] = useState<TileStyle>('light');
-  const [activeDistrictView, setActiveDistrictView] = useState<string>('all');
-  const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
   const [isAddSubstationModalOpen, setIsAddSubstationModalOpen] = useState(false);
-  const [targetObjectForEvent, setTargetObjectForEvent] = useState<EnergyObject | null>(null);
-  
-  // Default centered on whole Kostanay region
-  const [mapCenter, setMapCenter] = useState<[number, number]>(REGIONAL_CENTER);
-  const [mapZoom, setMapZoom] = useState(7);
 
-  // Filter objects by status and selected district
-  const filteredObjects = useMemo(() => {
-    let list = objects;
-    if (statusFilter !== 'all') {
-      list = list.filter(o => o.status === statusFilter);
+  // 1. Загрузка данных из Supabase
+  const loadDataFromSupabase = async () => {
+    setIsLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+      let loadedObjects: SupabaseObject[] = [];
+      let loadedLines: SupabaseLine[] = [];
+
+      if (supabase) {
+        const { data: objectsData, error: objError } = await supabase
+          .from('objects')
+          .select('*');
+
+        const { data: linesData, error: lineError } = await supabase
+          .from('lines')
+          .select('*');
+
+        if (objError) {
+          console.warn('Supabase objects query error:', objError.message);
+        } else if (objectsData && objectsData.length > 0) {
+          loadedObjects = objectsData as SupabaseObject[];
+          setIsSupabaseLive(true);
+        }
+
+        if (lineError) {
+          console.warn('Supabase lines query error:', lineError.message);
+        } else if (linesData && linesData.length > 0) {
+          loadedLines = linesData as SupabaseLine[];
+        }
+      }
+
+      // Fallback на локальный набор (naurzum_district_insert.sql) если Supabase пуст или не подключен
+      if (loadedObjects.length === 0) {
+        loadedObjects = DEFAULT_NAURZUM_OBJECTS;
+        loadedLines = DEFAULT_NAURZUM_LINES;
+        setIsSupabaseLive(false);
+      }
+
+      setObjects(loadedObjects);
+      setLines(loadedLines);
+
+      // 5. Вывод в консоль objects.length и lines.length после загрузки
+      console.log('⚡ [EnergySight] Данные успешно загружены:');
+      console.log('⚡ objects.length =', loadedObjects.length, loadedObjects);
+      console.log('⚡ lines.length =', loadedLines.length, loadedLines);
+    } catch (err) {
+      console.error('Ошибка при загрузке данных из Supabase:', err);
+      setObjects(DEFAULT_NAURZUM_OBJECTS);
+      setLines(DEFAULT_NAURZUM_LINES);
+      console.log('⚡ Fallback objects.length =', DEFAULT_NAURZUM_OBJECTS.length);
+      console.log('⚡ Fallback lines.length =', DEFAULT_NAURZUM_LINES.length);
+    } finally {
+      setIsLoading(false);
     }
-    if (activeDistrictView !== 'all') {
-      list = list.filter(o => o.district.toLowerCase().includes(activeDistrictView.toLowerCase()));
-    }
-    return list;
-  }, [objects, statusFilter, activeDistrictView]);
+  };
+
+  useEffect(() => {
+    loadDataFromSupabase();
+  }, []);
 
   const selectedObject = useMemo(() => {
-    return objects.find(o => o.id === selectedObjectId);
-  }, [objects, selectedObjectId]);
+    return objects.find(o => o.id === selectedObjId);
+  }, [objects, selectedObjId]);
 
-  const handleOpenAddEvent = (obj: EnergyObject, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setTargetObjectForEvent(obj);
-    setIsAddEventModalOpen(true);
-  };
-
-  const handleNavigateToDetail = (objId: string) => {
-    setSelectedObjectId(objId);
-    setActiveTab('detail');
-  };
-
-  const getLatestEventForObject = (objectId: string) => {
-    return events.find(e => e.objectId === objectId);
-  };
-
-  const handleDistrictChange = (districtKey: string) => {
-    setActiveDistrictView(districtKey);
-    switch (districtKey) {
-      case 'наурзум':
-        setMapCenter(NAURZUM_CENTER);
-        setMapZoom(9);
-        break;
-      case 'костанай':
-        setMapCenter(KOSTANAY_CENTER);
-        setMapZoom(12);
-        break;
-      default:
-        setMapCenter(REGIONAL_CENTER);
-        setMapZoom(7);
-        break;
-    }
-  };
-
-  // Get tile URL and attribution based on tile style
+  // Tile configuration
   const tileConfig = useMemo(() => {
     switch (tileStyle) {
       case 'light':
@@ -209,39 +230,27 @@ export const NetworkMap: React.FC = () => {
                 <Zap className="h-4 w-4 text-cyan-400" />
                 ТОО "Межрегионэнерготранзит"
               </span>
-              <p className="text-[10px] text-slate-400 mt-0.5">Карта электрических сетей (Костанай)</p>
+              <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                <Database className="h-3 w-3 text-cyan-400" />
+                {isSupabaseLive ? (
+                  <span className="text-emerald-400 font-semibold">База данных Supabase (Live)</span>
+                ) : (
+                  <span>Наурзумский район (Локально)</span>
+                )}
+              </p>
             </div>
             <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-500/40">
-              {objects.length} ПС • {powerLines.length} ЛЭП
+              {objects.length} узлов • {lines.length} ЛЭП
             </span>
           </div>
 
-          {/* Action Buttons: Add Substation & Clear */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsAddSubstationModalOpen(true)}
-              className="flex-1 py-2 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition-all font-sans"
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span>Добавить объект</span>
-            </button>
-
-            {objects.length > 0 && (
-              <button
-                onClick={clearAllObjects}
-                className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/40 text-xs font-medium transition-all"
-                title="Стереть все объекты с карты"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Map Base Layer Switcher (Light / Satellite / Dark) */}
+          {/* Map Base Layer Switcher */}
           <div>
             <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1.5 flex items-center justify-between">
-              <span>Режим подложки карты:</span>
-              <span className="text-cyan-400 font-semibold">{tileStyle === 'light' ? 'Светлая (Voyager)' : tileStyle === 'osm' ? 'Стандарт OSM' : tileStyle === 'satellite' ? 'Спутник' : 'Темная SCADA'}</span>
+              <span>Режим карты:</span>
+              <span className="text-cyan-400 font-semibold">
+                {tileStyle === 'light' ? 'Светлая (Voyager)' : tileStyle === 'osm' ? 'OSM' : tileStyle === 'satellite' ? 'Спутник' : 'Темная'}
+              </span>
             </div>
             <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950/80 rounded-xl border border-slate-800">
               <button
@@ -277,7 +286,7 @@ export const NetworkMap: React.FC = () => {
                     ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
                     : 'text-slate-400 hover:text-white'
                 }`}
-                title="Спутниковая съемка местности"
+                title="Спутниковая съемка"
               >
                 <Satellite className="h-3 w-3" />
                 <span>Спутник</span>
@@ -290,7 +299,7 @@ export const NetworkMap: React.FC = () => {
                     ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
                     : 'text-slate-400 hover:text-white'
                 }`}
-                title="Темная тема диспетчера"
+                title="Темная SCADA"
               >
                 <Moon className="h-3 w-3" />
                 <span>Темная</span>
@@ -298,121 +307,63 @@ export const NetworkMap: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Focus District Buttons */}
-          <div>
-            <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1.5">
-              Быстрый переход:
-            </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              <button
-                onClick={() => handleDistrictChange('all')}
-                className={`py-1 px-2 rounded-lg text-[10px] font-bold transition-all truncate border ${
-                  activeDistrictView === 'all'
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-extrabold'
-                    : 'bg-slate-950/60 text-slate-300 border-slate-800 hover:bg-slate-800'
-                }`}
-              >
-                Вся область
-              </button>
-
-              <button
-                onClick={() => handleDistrictChange('наурзум')}
-                className={`py-1 px-2 rounded-lg text-[10px] font-bold transition-all truncate border ${
-                  activeDistrictView === 'наурзум'
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-extrabold'
-                    : 'bg-slate-950/60 text-slate-300 border-slate-800 hover:bg-slate-800'
-                }`}
-              >
-                Наурзумский
-              </button>
-
-              <button
-                onClick={() => handleDistrictChange('костанай')}
-                className={`py-1 px-2 rounded-lg text-[10px] font-bold transition-all truncate border ${
-                  activeDistrictView === 'костанай'
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-extrabold'
-                    : 'bg-slate-950/60 text-slate-300 border-slate-800 hover:bg-slate-800'
-                }`}
-              >
-                г. Костанай
-              </button>
-            </div>
-          </div>
-
-          {/* Voltage Line Legend based on official schematic */}
-          <div className="space-y-1 text-[11px] font-mono border-t border-slate-700/80 pt-2 text-slate-300">
-            <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">
-              Классы напряжения ЛЭП
-            </div>
-            <div className="grid grid-cols-2 gap-1">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-4 rounded-full bg-blue-600 shadow-[0_0_6px_#2563EB]" />
-                <span className="font-bold">ВЛ 220 кВ</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-4 rounded-full bg-emerald-600 shadow-[0_0_6px_#059669]" />
-                <span className="font-bold">ВЛ 110 кВ</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-4 rounded-full bg-red-600 shadow-[0_0_6px_#DC2626]" />
-                <span className="font-bold">ВЛ 35 кВ</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-4 rounded-full bg-amber-500 shadow-[0_0_6px_#D97706]" />
-                <span className="font-bold">ВЛ 10 кВ</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Layer toggles */}
+          {/* Action Button: Refresh / Add */}
           <div className="flex items-center gap-2 pt-1 border-t border-slate-700/80">
             <button
-              onClick={() => setShowLines(!showLines)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] font-medium border transition-colors ${
-                showLines
-                  ? 'bg-cyan-950/80 border-cyan-500/40 text-cyan-300'
-                  : 'bg-slate-950 border-slate-800 text-slate-500'
-              }`}
+              onClick={loadDataFromSupabase}
+              disabled={isLoading}
+              className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-700"
             >
-              <Layers className="h-3 w-3" />
-              <span>ЛЭП ({powerLines.length})</span>
+              <RefreshCw className={`h-3.5 w-3.5 text-cyan-400 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>Обновить из базы</span>
+            </button>
+
+            <button
+              onClick={() => setShowLines(!showLines)}
+              className={`py-1.5 px-2.5 rounded-lg text-xs font-semibold border transition-all ${
+                showLines ? 'bg-cyan-950/80 border-cyan-500/40 text-cyan-300' : 'bg-slate-950 border-slate-800 text-slate-500'
+              }`}
+              title="Переключить видимость линий"
+            >
+              ЛЭП ({lines.length})
             </button>
 
             <button
               onClick={() => setShowLabels(!showLabels)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] font-medium border transition-colors ${
-                showLabels
-                  ? 'bg-cyan-950/80 border-cyan-500/40 text-cyan-300'
-                  : 'bg-slate-950 border-slate-800 text-slate-500'
+              className={`py-1.5 px-2.5 rounded-lg text-xs font-semibold border transition-all ${
+                showLabels ? 'bg-cyan-950/80 border-cyan-500/40 text-cyan-300' : 'bg-slate-950 border-slate-800 text-slate-500'
               }`}
+              title="Переключить подписи"
             >
-              <Eye className="h-3 w-3" />
-              <span>Подписи</span>
+              Подписи
             </button>
           </div>
         </div>
       </div>
 
-      {/* Recenter & Map Actions Overlay */}
+      {/* Recenter Map Overlay */}
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
         <button
-          onClick={() => handleDistrictChange('all')}
+          onClick={() => {
+            const map = (window as any)._leaflet_map;
+            if (map) map.setView(MAP_CENTER, 9);
+          }}
           className="p-2.5 rounded-xl bg-slate-900/90 backdrop-blur-xl border border-slate-700 text-slate-200 hover:text-cyan-300 hover:border-cyan-500/50 shadow-xl transition-all flex items-center gap-2 text-xs font-bold"
-          title="Сфокусировать на всей Костанайской области"
+          title="Сфокусировать на Наурзумском районе"
         >
           <Compass className="h-4 w-4 text-cyan-400" />
-          <span>Вся область</span>
+          <span>Наурзумский р-н</span>
         </button>
       </div>
 
-      {/* Leaflet Map */}
+      {/* Leaflet Map Container */}
       <MapContainer
-        center={mapCenter}
-        zoom={mapZoom}
+        center={MAP_CENTER}
+        zoom={9}
         zoomControl={false}
         className="w-full h-full"
       >
-        <MapController center={mapCenter} zoom={mapZoom} />
+        <MapController center={MAP_CENTER} zoom={9} />
 
         {/* Selected Tile Layer */}
         <TileLayer
@@ -422,38 +373,43 @@ export const NetworkMap: React.FC = () => {
           maxZoom={19}
         />
 
-        {/* Transmission Power Lines (ЛЭП) */}
+        {/* 3. Для каждой линии из lines находим координаты начала и конца через from_object_id и to_object_id */}
         {showLines &&
-          powerLines.map(line => {
-            let lineColor = '#059669'; // 110 kV (green)
+          lines.map(line => {
+            const fromObj = objects.find(o => o.id === line.from_object_id);
+            const toObj = objects.find(o => o.id === line.to_object_id);
+
+            // Если оба объекта найдены в objects
+            if (!fromObj || !toObj) return null;
+
+            // Цветовая индикация по классу напряжения
+            let lineColor = '#059669'; // 110 кВ (зеленый)
             let weight = 3.5;
             let dashArray: string | undefined = undefined;
 
-            if (line.voltageKV >= 220) {
-              lineColor = '#2563EB'; // 220 kV (blue)
-              weight = 4.5;
-            } else if (line.voltageKV >= 110) {
-              lineColor = '#059669'; // 110 kV (green)
+            if (line.voltage_class?.includes('110') || line.wire_type === 'АС-95') {
+              lineColor = '#059669'; // 110 кВ
               weight = 3.5;
-            } else if (line.voltageKV >= 35) {
-              lineColor = '#DC2626'; // 35 kV (red)
-              weight = 3.0;
-            } else {
-              lineColor = '#D97706'; // 10 kV (amber)
+            } else if (line.voltage_class?.includes('10')) {
+              lineColor = '#D97706'; // 10 кВ
               weight = 2.5;
+            } else if (line.voltage_class?.includes('35') || line.wire_type === 'АС-70' || line.wire_type === 'АС-35') {
+              lineColor = '#DC2626'; // 35 кВ
+              weight = 3.0;
             }
 
-            if (line.status === 'disconnected') {
+            if (line.status === 'demontirovana' || line.status === 'disconnected') {
               dashArray = '6, 8';
-              lineColor = '#DC2626';
-            } else if (line.status === 'overloaded') {
-              lineColor = '#D97706';
+              lineColor = '#94A3B8'; // пунктирная для демонтированной/отключенной
             }
 
             return (
               <Polyline
-                key={line.id}
-                positions={line.coordinates}
+                key={`line-${line.id}-${line.from_object_id}-${line.to_object_id}`}
+                positions={[
+                  [fromObj.latitude, fromObj.longitude],
+                  [toObj.latitude, toObj.longitude],
+                ]}
                 pathOptions={{
                   color: lineColor,
                   weight: weight,
@@ -465,11 +421,13 @@ export const NetworkMap: React.FC = () => {
               >
                 <Tooltip sticky className="dark-map-tooltip">
                   <div className="p-2 text-xs font-mono bg-slate-950 text-white rounded-lg border border-slate-700 shadow-xl">
-                    <strong className="text-white block text-[13px] font-bold border-b border-slate-800 pb-1">{line.name}</strong>
+                    <strong className="text-white block text-[13px] font-bold border-b border-slate-800 pb-1">
+                      {line.line_name || `ВЛ «${fromObj.name} — ${toObj.name}»`}
+                    </strong>
                     <div className="text-slate-300 text-[11px] mt-1 space-y-0.5">
-                      <div>Марка провода: <strong className="text-cyan-300 font-bold">{line.wireType || 'АС-95'}</strong> • Длина: <strong className="text-white">{line.lengthKm || '—'} км</strong></div>
-                      <div>Класс напряжения: <strong>{line.voltageKV} кВ</strong> {line.voltageClass ? `(${line.voltageClass})` : ''}</div>
-                      <div>Поток мощности: <strong className="text-emerald-400 font-bold">{line.powerFlowMW} МВт</strong> / {line.maxCapacityMW} МВт</div>
+                      <div>Марка провода: <strong className="text-cyan-300 font-bold">{line.wire_type || 'АС'}</strong> • Длина: <strong className="text-white">{line.length_km || '—'} км</strong></div>
+                      <div>Класс: <strong>{line.voltage_class || '35 кВ'}</strong></div>
+                      <div>Статус: <span className={line.status === 'active' ? 'text-emerald-400' : 'text-slate-400'}>{line.status || 'active'}</span></div>
                     </div>
                   </div>
                 </Tooltip>
@@ -477,19 +435,18 @@ export const NetworkMap: React.FC = () => {
             );
           })}
 
-        {/* Substation Markers */}
-        {filteredObjects.map(obj => {
-          const isSelected = obj.id === selectedObjectId;
-          const latestEvent = getLatestEventForObject(obj.id);
+        {/* 2. Для каждого объекта из objects ставим маркер Leaflet: position={[obj.latitude, obj.longitude]} */}
+        {objects.map(obj => {
+          const isSelected = obj.id === selectedObjId;
 
           return (
             <Marker
-              key={obj.id}
-              position={obj.coordinates}
-              icon={createSubstationIcon(obj.status, obj.voltageClassKV, isSelected)}
+              key={`obj-${obj.id}`}
+              position={[obj.latitude, obj.longitude]}
+              icon={createObjectIcon(obj.status, isSelected)}
               eventHandlers={{
                 click: () => {
-                  setSelectedObjectId(obj.id);
+                  setSelectedObjId(obj.id);
                 },
               }}
             >
@@ -503,70 +460,42 @@ export const NetworkMap: React.FC = () => {
                   className="bg-transparent border-0 shadow-none !p-0"
                 >
                   <div className="px-2 py-0.5 rounded-md bg-slate-950/90 text-white border border-slate-700 text-[10.5px] font-bold font-mono tracking-tight whitespace-nowrap shadow-lg">
-                    {obj.name.replace(/ПС \d+\/?\d*\/??\d* кВ /i, '').replace(/"/g, '')}
+                    {obj.name}
                   </div>
                 </Tooltip>
               )}
 
               {/* Marker Click Popup */}
-              <Popup className="custom-scada-popup" minWidth={280} maxWidth={320}>
-                <div className="p-4 space-y-3 bg-slate-900 text-white rounded-xl">
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-2.5">
-                    <div>
-                      <span className="text-[10px] font-mono font-bold text-cyan-400 block uppercase">
-                        {obj.code} • {obj.district}
-                      </span>
-                      <h4 className="text-sm font-bold text-white leading-tight mt-0.5">
-                        {obj.name}
-                      </h4>
-                    </div>
-                    <StatusBadge status={obj.status} size="sm" />
+              <Popup className="custom-scada-popup" minWidth={260} maxWidth={300}>
+                <div className="p-4 space-y-2.5 bg-slate-900 text-white rounded-xl">
+                  <div className="border-b border-slate-800 pb-2">
+                    <span className="text-[10px] font-mono font-bold text-cyan-400 block uppercase">
+                      ID: {obj.id} • {obj.district || 'Наурзумский'}
+                    </span>
+                    <h4 className="text-sm font-bold text-white leading-tight mt-0.5">
+                      {obj.name}
+                    </h4>
                   </div>
 
-                  {/* Quick Specs */}
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                      <span className="text-[10px] text-slate-400 block">Мощность:</span>
-                      <strong className="text-cyan-300">{obj.telemetry.activePowerMW} МВт</strong>
-                      <span className="text-[10px] text-slate-500 block">из {obj.installedCapacityMVA} МВА</span>
+                  <div className="space-y-1 text-xs font-mono text-slate-300">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Тип:</span>
+                      <strong className="text-white">{obj.type || 'узел'}</strong>
                     </div>
-
-                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                      <span className="text-[10px] text-slate-400 block">Напряжение U:</span>
-                      <strong className="text-emerald-400">{obj.telemetry.voltageKV} кВ</strong>
-                      <span className="text-[10px] text-slate-500 block">f = {obj.telemetry.frequencyHz} Гц</span>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Широта (Lat):</span>
+                      <strong className="text-cyan-300">{obj.latitude}</strong>
                     </div>
-                  </div>
-
-                  {/* Latest Event Note */}
-                  {latestEvent && (
-                    <div className="p-2 rounded-lg bg-slate-950/70 border border-slate-800 text-[11px]">
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                        <span className="font-semibold text-slate-300">Последнее событие:</span>
-                        <span>{formatRelativeTime(latestEvent.timestamp)}</span>
-                      </div>
-                      <p className="text-slate-300 line-clamp-1 italic">{latestEvent.title}</p>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Долгота (Lng):</span>
+                      <strong className="text-cyan-300">{obj.longitude}</strong>
                     </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      onClick={() => handleOpenAddEvent(obj)}
-                      className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border border-slate-700"
-                    >
-                      <PlusCircle className="h-3.5 w-3.5 text-amber-400" />
-                      <span>Событие</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleNavigateToDetail(obj.id)}
-                      className="flex-1 py-1.5 px-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all"
-                    >
-                      <span>Паспорт</span>
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Статус:</span>
+                      <strong className={obj.status === 'демонтирован' ? 'text-slate-400' : 'text-emerald-400'}>
+                        {obj.status || 'норма'}
+                      </strong>
+                    </div>
                   </div>
                 </div>
               </Popup>
@@ -575,171 +504,64 @@ export const NetworkMap: React.FC = () => {
         })}
       </MapContainer>
 
-      {/* Empty State Banner if no objects */}
-      {objects.length === 0 && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-[900]">
-          <div className="pointer-events-auto p-6 rounded-2xl bg-slate-900/90 backdrop-blur-md border border-slate-700 shadow-2xl text-center max-w-md mx-4 space-y-3">
-            <div className="h-12 w-12 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto">
-              <MapPin className="h-6 w-6" />
-            </div>
-            <h3 className="text-base font-bold text-white">Все объекты стёрты</h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Карта очищена. Вы можете добавить новые подстанции и узлы вручную с точными координатами.
-            </p>
-            <button
-              onClick={() => setIsAddSubstationModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold inline-flex items-center gap-2 shadow-lg"
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span>Добавить энергообъект</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Slide-out Quick Details Drawer (Right Side) */}
+      {/* Quick Drawer if an object is selected */}
       {selectedObject && (
-        <div className="absolute top-4 right-4 bottom-4 z-[1000] w-80 lg:w-96 rounded-2xl bg-slate-900/95 backdrop-blur-2xl border border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden animate-fade-in text-white">
-          {/* Header */}
+        <div className="absolute top-4 right-4 bottom-4 z-[1000] w-80 rounded-2xl bg-slate-900/95 backdrop-blur-2xl border border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden animate-fade-in text-white">
           <div className="p-4 border-b border-slate-800 bg-slate-950/80 flex items-start justify-between">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
-                  {selectedObject.code}
-                </span>
-                <StatusBadge status={selectedObject.status} size="sm" />
-              </div>
-              <h3 className="text-base font-bold text-white leading-tight">
+              <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
+                ID #{selectedObject.id}
+              </span>
+              <h3 className="text-base font-bold text-white leading-tight mt-1">
                 {selectedObject.name}
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">{selectedObject.district} • {selectedObject.address}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{selectedObject.district} • {selectedObject.type}</p>
             </div>
             <button
-              onClick={() => setSelectedObjectId(null)}
+              onClick={() => setSelectedObjId(null)}
               className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Body Content */}
-          <div className="p-4 space-y-4 overflow-y-auto flex-1 text-xs">
-            {/* Live Telemetry Card */}
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Gauge className="h-3.5 w-3.5 text-cyan-400" />
-                  Телеметрия в реальном времени
-                </span>
-                <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  ONLINE
-                </span>
+          <div className="p-4 space-y-3 overflow-y-auto flex-1 text-xs font-mono">
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Точные координаты из базы (без округлений)
+              </span>
+              <div className="flex justify-between py-1 border-b border-slate-800/80">
+                <span className="text-slate-500">Широта (Latitude):</span>
+                <span className="text-cyan-300 font-bold">{selectedObject.latitude}</span>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 font-mono">
-                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] text-slate-500 block">Активная мощность P:</span>
-                  <span className="text-sm font-bold text-cyan-300">
-                    {selectedObject.telemetry?.activePowerMW || 0} МВт
-                  </span>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] text-slate-500 block">Реактивная мощн. Q:</span>
-                  <span className="text-sm font-bold text-slate-200">
-                    {selectedObject.telemetry?.reactivePowerMvar || 0} МВар
-                  </span>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] text-slate-500 block">Напряжение U:</span>
-                  <span className="text-sm font-bold text-emerald-400">
-                    {selectedObject.telemetry?.voltageKV || 0} кВ
-                  </span>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] text-slate-500 block">Частота сети:</span>
-                  <span className="text-sm font-bold text-slate-200">
-                    {selectedObject.telemetry?.frequencyHz || 50.00} Гц
-                  </span>
-                </div>
-              </div>
-
-              {/* Load Bar */}
-              <div>
-                <div className="flex justify-between text-[11px] font-mono text-slate-400 mb-1">
-                  <span>Загрузка трансформаторов:</span>
-                  <strong className="text-slate-200">{selectedObject.loadPercentage || 0}%</strong>
-                </div>
-                <div className="h-2 w-full rounded-full bg-slate-900 overflow-hidden">
-                  <div
-                    style={{ width: `${selectedObject.loadPercentage || 0}%` }}
-                    className={`h-full transition-all duration-500 ${
-                      (selectedObject.loadPercentage || 0) > 85
-                        ? 'bg-rose-500'
-                        : (selectedObject.loadPercentage || 0) > 70
-                        ? 'bg-amber-500'
-                        : 'bg-cyan-500'
-                    }`}
-                  />
-                </div>
+              <div className="flex justify-between py-1">
+                <span className="text-slate-500">Долгота (Longitude):</span>
+                <span className="text-cyan-300 font-bold">{selectedObject.longitude}</span>
               </div>
             </div>
 
-            {/* Equipment Passport Snapshot */}
-            <div className="space-y-2 text-slate-300">
-              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
-                <span className="text-slate-400">Класс напряжения:</span>
-                <span className="font-mono font-semibold text-white">{selectedObject.voltageClassKV} кВ</span>
+            <div className="space-y-1.5 text-slate-300">
+              <div className="flex justify-between py-1 border-b border-slate-800">
+                <span className="text-slate-500">Тип объекта:</span>
+                <span className="text-white">{selectedObject.type}</span>
               </div>
-
-              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
-                <span className="text-slate-400">Установл. мощность:</span>
-                <span className="font-mono font-semibold text-cyan-300">{selectedObject.installedCapacityMVA} МВА</span>
+              <div className="flex justify-between py-1 border-b border-slate-800">
+                <span className="text-slate-500">Оперативный статус:</span>
+                <span className="text-emerald-400">{selectedObject.status}</span>
               </div>
-
-              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
-                <span className="text-slate-400">Кол-во трансформаторов:</span>
-                <span className="font-mono font-semibold text-white">{selectedObject.transformersCount} шт</span>
-              </div>
-
-              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
-                <span className="text-slate-400">Год ввода в экспл.:</span>
-                <span className="font-mono text-white">{selectedObject.installationYear} г.</span>
-              </div>
-
-              <div className="flex justify-between py-1.5 border-b border-slate-800 text-[11px]">
-                <span className="text-slate-400">Посл. обслуживание:</span>
-                <span className="font-mono text-cyan-300 font-semibold">
-                  {selectedObject.lastMaintenanceDate || '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between py-1.5 text-[11px]">
-                <span className="text-slate-400">Ответственный инженер:</span>
-                <span className="font-medium text-white">{selectedObject.chiefEngineer}</span>
+              <div className="flex justify-between py-1">
+                <span className="text-slate-500">Район:</span>
+                <span className="text-white">{selectedObject.district}</span>
               </div>
             </div>
           </div>
 
-          {/* Footer Actions */}
-          <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center gap-2.5">
+          <div className="p-3 border-t border-slate-800 bg-slate-950/60">
             <button
-              onClick={() => handleOpenAddEvent(selectedObject)}
-              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-all border border-slate-700"
+              onClick={() => setSelectedObjId(null)}
+              className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
             >
-              <PlusCircle className="h-4 w-4 text-amber-400" />
-              <span>Зафиксировать</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigateToDetail(selectedObject.id)}
-              className="flex-1 py-2.5 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all font-sans"
-            >
-              <span>Вся карточка</span>
-              <ChevronRight className="h-4 w-4" />
+              Закрыть панель
             </button>
           </div>
         </div>
@@ -750,18 +572,6 @@ export const NetworkMap: React.FC = () => {
         isOpen={isAddSubstationModalOpen}
         onClose={() => setIsAddSubstationModalOpen(false)}
       />
-
-      {/* Add Event Modal */}
-      {targetObjectForEvent && (
-        <AddEventModal
-          isOpen={isAddEventModalOpen}
-          onClose={() => {
-            setIsAddEventModalOpen(false);
-            setTargetObjectForEvent(null);
-          }}
-          targetObject={targetObjectForEvent}
-        />
-      )}
     </div>
   );
 };
